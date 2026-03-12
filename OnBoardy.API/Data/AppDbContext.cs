@@ -7,12 +7,9 @@ namespace OnBoardy.API.Data
     {
         private readonly IConfiguration _configuration;
 
-        public DbSet<Organization> Organizations { get; set; }
-        public DbSet<Department> Departments { get; set; }
-        public DbSet<Team> Teams { get; set; }
-        public DbSet<User> Users { get; set; }
-        public DbSet<UserTeam> UserTeams { get; set; }
-        public DbSet<UserDepartment> UserDepartments { get; set; }
+        public required DbSet<User> Users { get; set; }
+        public required DbSet<RefreshToken> RefreshTokens { get; set; }
+        public required DbSet<EmailVerification> EmailVerification { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration)
             : base(options)

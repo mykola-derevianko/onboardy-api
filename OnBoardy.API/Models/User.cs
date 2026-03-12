@@ -1,29 +1,28 @@
-﻿namespace OnBoardy.API.Models;
+﻿using System.ComponentModel.DataAnnotations;
 
-public class User
+namespace OnBoardy.API.Models
 {
-    public Guid Id { get; set; }
+    public class User
+    {
+        public Guid Id { get; set; }
 
-    public Guid OrganizationId { get; set; }
+        public required string Email { get; set; }
 
-    public required string Email { get; set; }
-    public required string FirstName { get; set; }
-    public required string LastName { get; set; }
+        public required string PasswordHash { get; set; }
 
-    public bool IsActive { get; set; } = true;
+        public required string FirstName { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+        public required string LastName { get; set; }
 
-    public Guid? CreatedBy { get; set; }
-    public User? CreatedByUser { get; set; }
+        public bool IsActive { get; set; } = true;
 
-    public DateTime? UpdatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public Guid? LastUpdatedBy { get; set; }
-    public User? LastUpdatedByUser { get; set; }
+        public bool EmailVerified { get; set; } = false;
 
-    public required Organization Organization { get; set; }
-    public ICollection<UserTeam> UserTeams { get; set; } = new List<UserTeam>();
-    public ICollection<UserDepartment> UserDepartments { get; set; } = new List<UserDepartment>();
-    public Organization? OwnedOrganization { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+
+        public virtual ICollection<EmailVerification> EmailVerifications { get; set; } = new List<EmailVerification>();
+        public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+    }
 }
