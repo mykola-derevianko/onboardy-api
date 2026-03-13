@@ -13,9 +13,11 @@ namespace OnBoardy.API.DTOs
         public required string Password { get; init; }
 
         [Required]
+        [MinLength(2)]
         public required string FirstName { get; init; }
 
         [Required]
+        [MinLength(2)]
         public required string LastName { get; init; }
     }
 }
