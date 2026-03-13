@@ -6,16 +6,16 @@ namespace OnBoardy.API.DTOs
     {
         [Required]
         [EmailAddress]
-        public string Email { get; init; } = default!;
+        public required string Email { get; init; }
 
         [Required]
         [MinLength(8)]
-        public string Password { get; init; } = default!;
+        public required string Password { get; init; }
 
         [Required]
-        public string FirstName { get; init; } = default!;
+        public required string FirstName { get; init; }
 
         [Required]
-        public string LastName { get; init; } = default!;
+        public required string LastName { get; init; }
     }
 }

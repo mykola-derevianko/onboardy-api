@@ -6,9 +6,9 @@ namespace OnBoardy.API.DTOs
     {
         [Required]
         [EmailAddress]
-        public string Email { get; init; } = default!;
+        public required string Email { get; init; }
 
         [Required]
-        public string Password { get; init; } = default!;
+        public required string Password { get; init; }
     }
 }

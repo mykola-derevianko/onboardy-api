@@ -1,6 +1,4 @@
-﻿using BCrypt.Net;
-using Microsoft.AspNetCore.Identity.Data;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Models;
