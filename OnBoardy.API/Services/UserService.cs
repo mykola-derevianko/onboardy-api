@@ -3,6 +3,7 @@ using OnBoardy.API.Models;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Services.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using OnBoardy.API.Exceptions.Domain;
 
 namespace OnBoardy.API.Services
 {
@@ -19,7 +20,7 @@ namespace OnBoardy.API.Services
         public async Task<User> CreateAsync(RegisterRequestDTO registerRequest)
         {
             if (await EmailExistsAsync(registerRequest.Email))
-                throw new Exception("Email already registered");
+                throw new EmailAlreadyRegisteredException();
 
             var user = new User
             {
@@ -52,7 +53,7 @@ namespace OnBoardy.API.Services
         public async Task VerifyEmailAsync(Guid userId)
         {
             var user = await GetByIdAsync(userId)
-                ?? throw new Exception("User not found");
+                ?? throw new UserNotFoundException();
 
             user.EmailVerified = true;
 
