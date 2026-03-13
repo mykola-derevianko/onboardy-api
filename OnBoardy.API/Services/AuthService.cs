@@ -1,6 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
+using OnBoardy.API.Exceptions.Domain;
+using OnBoardy.API.Exceptions.Identity;
 using OnBoardy.API.Models;
 using OnBoardy.API.Services.Infrastructure;
 
@@ -56,16 +58,16 @@ namespace OnBoardy.API.Services
         public async Task<AuthResponseDTO> LoginAsync(LoginRequestDTO request, string ip)
         {
             var user = await _userService.GetByEmailAsync(request.Email)
-                ?? throw new Exception("Invalid credentials");
+                ?? throw new UserNotFoundException();
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-                throw new Exception("Invalid credentials");
+                throw new InvalidCredentialsException();
 
             if (!user.EmailVerified)
-                throw new Exception("Email not verified");
+                throw new EmailNotVerifiedException();
 
             if (!user.IsActive)
-                throw new Exception("Account disabled");
+                throw new AccountDisabledException();
 
             var access = _tokenService.CreateAccessToken(user);
             var refresh = await _tokenService.CreateRefreshTokenAsync(user.Id, ip);
@@ -78,10 +80,13 @@ namespace OnBoardy.API.Services
             var token = await _db.RefreshTokens
                 .Include(x => x.User)
                 .FirstOrDefaultAsync(x => x.Token == refreshToken)
-                ?? throw new Exception("Invalid token");
+                ?? throw new InvalidRefreshTokenException();
 
-            if (token.RevokedAt != null || token.ExpiresAt < DateTime.UtcNow)
-                throw new Exception("Invalid token");
+            if (token.RevokedAt != null)
+                throw new InvalidRefreshTokenException();
+
+            if (token.ExpiresAt < DateTime.UtcNow)
+                throw new TokenExpiredException();
 
             token.RevokedAt = DateTime.UtcNow;
 
@@ -96,10 +101,10 @@ namespace OnBoardy.API.Services
         {
             var record = await _db.EmailVerification
                 .FirstOrDefaultAsync(x => x.Token == token)
-                ?? throw new Exception("Invalid token");
+                ?? throw new InvalidEmailVerificationTokenException();
 
             if (record.ExpiresAt < DateTime.UtcNow)
-                throw new Exception("Token expired");
+                throw new TokenExpiredException();
 
             await _userService.VerifyEmailAsync(record.UserId);
         }
