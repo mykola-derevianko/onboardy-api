@@ -108,6 +108,9 @@ namespace OnBoardy.API.Services
             if (record.ExpiresAt < DateTime.UtcNow)
                 throw new TokenExpiredException(); //New domain exception should be added (EmailVerificationExpired?)
 
+            if(record.VerifiedAt != null)
+                throw new InvalidEmailVerificationTokenException(); //New domain exception should be added (EmailAlreadyVerified?)
+
             await _userService.VerifyEmailAsync(record.UserId);
         }
 
