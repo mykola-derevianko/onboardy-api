@@ -11,9 +11,12 @@ namespace OnBoardy.API.Services.Infrastructure
 
         Task<User?> GetByIdAsync(Guid id);
 
+        Task<User> UpdateAsync(Guid id, UpdateUserRequestDTO request);
+
+        Task DeleteAsync(Guid id);
+
         Task VerifyEmailAsync(Guid userId);
 
         Task<bool> EmailExistsAsync(string email);
-
     }
 }

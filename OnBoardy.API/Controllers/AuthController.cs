@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Identity;
 using OnBoardy.API.Services.Infrastructure;
@@ -42,6 +43,7 @@ namespace OnBoardy.API.Controllers
             var refreshToken = Request.Cookies["refresh_token"] ?? throw new UnauthorizedAccessException();
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var result = await _authService.RefreshAsync(refreshToken, ip);
+            SetTokensInHttpOnlyCookies(result, HttpContext);
             return Ok(new { message = "Refresh successful." });
         }
 
