@@ -1,13 +1,12 @@
-﻿using OnBoardy.API.Data;
-using OnBoardy.API.Models;
+﻿using Microsoft.EntityFrameworkCore;
+using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
-using OnBoardy.API.Services.Infrastructure;
-using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Exceptions.Domain;
+using OnBoardy.API.Models;
+using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Services
 {
-
     public class UserService : IUserService
     {
         private readonly AppDbContext _db;
@@ -50,12 +49,47 @@ namespace OnBoardy.API.Services
             return await _db.Users.FindAsync(id);
         }
 
+        public async Task<User> UpdateAsync(Guid id, UpdateUserRequestDTO request)
+        {
+            var user = await GetByIdAsync(id) ?? throw new UserNotFoundException();
+
+            if (request.FirstName is null &&
+                request.LastName is null &&
+                request.IsActive is null)
+            {
+                throw new DomainException("No fields were provided for update.");
+            }
+
+            if (request.FirstName is not null)
+                user.FirstName = request.FirstName;
+
+            if (request.LastName is not null)
+                user.LastName = request.LastName;
+
+            if (request.IsActive.HasValue)
+                user.IsActive = request.IsActive.Value;
+
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
+            return user;
+        }
+
+        public async Task DeleteAsync(Guid id)
+        {
+            var user = await GetByIdAsync(id) ?? throw new UserNotFoundException();
+
+            _db.Users.Remove(user);
+            await _db.SaveChangesAsync();
+        }
+
         public async Task VerifyEmailAsync(Guid userId)
         {
             var user = await GetByIdAsync(userId)
                 ?? throw new UserNotFoundException();
 
             user.EmailVerified = true;
+            user.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
         }
