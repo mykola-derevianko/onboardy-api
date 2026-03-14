@@ -7,5 +7,6 @@ namespace OnBoardy.API.Services.Infrastructure
         Task<TokenDTO> LoginAsync(LoginRequestDTO request, string ipAddress);
         Task<TokenDTO> RefreshAsync(string refreshToken, string ipAddress);
         Task VerifyEmailAsync(string token);
+        Task LogoutAsync(string? refreshToken);
     }
 }

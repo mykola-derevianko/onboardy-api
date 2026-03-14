@@ -9,7 +9,7 @@ namespace OnBoardy.API.Models
 
         public Guid UserId { get; set; }
 
-        public User User { get; set; }
+        public required User User { get; set; }
 
         public required string Token { get; set; }
 

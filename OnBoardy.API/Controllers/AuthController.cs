@@ -52,6 +52,27 @@ namespace OnBoardy.API.Controllers
             return Ok(new { message = "Email successfully verified." });
         }
 
+        [HttpPost("logout")]
+        public async Task<IActionResult> Logout()
+        {
+            var refreshToken = Request.Cookies["refresh_token"];
+
+            await _authService.LogoutAsync(refreshToken);
+
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true,
+                SameSite = SameSiteMode.Strict,
+                Expires = DateTime.UtcNow.AddDays(-1)
+            };
+
+            Response.Cookies.Append("access_token", string.Empty, cookieOptions);
+            Response.Cookies.Append("refresh_token", string.Empty, cookieOptions);
+
+            return Ok(new { message = "Logged out successfully." });
+        }
+
         private void SetTokensInHttpOnlyCookies(TokenDTO token, HttpContext context)
         {
             if (!double.TryParse(_config["Jwt:ExpireMinutes"], out double expireMinutes))

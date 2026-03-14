@@ -1,6 +1,4 @@
-﻿using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
@@ -19,7 +17,6 @@ namespace OnBoardy.API.Services
         private readonly IEmailService _email;
         private readonly AppDbContext _db;
 
-
         public AuthService(
             IUserService userService,
             ITokenService tokenService,
@@ -36,7 +33,6 @@ namespace OnBoardy.API.Services
         {
             var user = await _userService.CreateAsync(request);
 
-            // Create email verification token
             var token = Guid.NewGuid().ToString();
             _db.EmailVerification.Add(new EmailVerification
             {
@@ -49,7 +45,6 @@ namespace OnBoardy.API.Services
 
             await _db.SaveChangesAsync();
 
-            // Send verification email
             var link = $"http://localhost:3000/verify-email?token={token}";
             await _email.SendAsync(
                 user.Email,
@@ -72,7 +67,6 @@ namespace OnBoardy.API.Services
             if (!user.IsActive)
                 throw new AccountDisabledException();
 
-
             var access = _tokenService.CreateAccessToken(user);
             var refresh = await _tokenService.CreateRefreshTokenAsync(user.Id, ip);
 
@@ -92,7 +86,8 @@ namespace OnBoardy.API.Services
             if (token.RevokedAt != null)
                 throw new InvalidRefreshTokenException();
 
-            if (token.ExpiresAt < DateTime.UtcNow)
+            if (token.ExpiresAt < DateTime.UtcNow) //Can be added attack detection here (if token is used after expiration multiple times,
+                                                   //we can assume it's being attacked and revoke all tokens for that user or something like that)
                 throw new TokenExpiredException();
 
             token.RevokedAt = DateTime.UtcNow;
@@ -111,10 +106,22 @@ namespace OnBoardy.API.Services
                 ?? throw new InvalidEmailVerificationTokenException();
 
             if (record.ExpiresAt < DateTime.UtcNow)
-                throw new TokenExpiredException();
+                throw new TokenExpiredException(); //New domain exception should be added (EmailVerificationExpired?)
 
             await _userService.VerifyEmailAsync(record.UserId);
         }
 
+        public async Task LogoutAsync(string? refreshToken)
+        {
+            if (string.IsNullOrWhiteSpace(refreshToken)) return;
+
+            var token = await _db.RefreshTokens
+                .FirstOrDefaultAsync(x => x.Token == refreshToken);
+
+            if (token is null || token.RevokedAt != null) return;
+
+            token.RevokedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+        }
     }
 }
