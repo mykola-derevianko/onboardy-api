@@ -58,13 +58,17 @@ namespace OnBoardy.API.Services
         public async Task<RefreshToken> CreateRefreshTokenAsync(Guid userId, string ipAddress)
         {
             var token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+            if (!double.TryParse(_config["Jwt:RefreshTokenExpireDays"], out double refreshTokenExpireDays))
+            {
+                refreshTokenExpireDays = 60;
+            }
 
             var refresh = new RefreshToken
             {
                 Token = token,
                 UserId = userId,
                 CreatedAt = DateTime.UtcNow,
-                ExpiresAt = DateTime.UtcNow.AddDays(30), //Should be moved to Configuration? (idk)
+                ExpiresAt = DateTime.UtcNow.AddDays(refreshTokenExpireDays), //Should be moved to Configuration? (idk)
                 IpAddress = ipAddress
             };
 

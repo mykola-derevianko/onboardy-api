@@ -9,6 +9,7 @@ namespace OnBoardy.API.DTOs
         public required string Email { get; init; }
 
         [Required]
+        [MinLength(8)]
         public required string Password { get; init; }
     }
 }
