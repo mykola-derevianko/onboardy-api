@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
@@ -16,6 +18,7 @@ namespace OnBoardy.API.Services
         private readonly ITokenService _tokenService;
         private readonly IEmailService _email;
         private readonly AppDbContext _db;
+
 
         public AuthService(
             IUserService userService,
@@ -47,7 +50,7 @@ namespace OnBoardy.API.Services
             await _db.SaveChangesAsync();
 
             // Send verification email
-            var link = $"http://localhost:3000/auth/verify-email?token={token}";
+            var link = $"http://localhost:3000/verify-email?token={token}";
             await _email.SendAsync(
                 user.Email,
                 "Verify Email",
@@ -55,7 +58,7 @@ namespace OnBoardy.API.Services
             );
         }
 
-        public async Task<AuthResponseDTO> LoginAsync(LoginRequestDTO request, string ip)
+        public async Task<TokenDTO> LoginAsync(LoginRequestDTO request, string ip)
         {
             var user = await _userService.GetByEmailAsync(request.Email)
                 ?? throw new UserNotFoundException();
@@ -69,14 +72,18 @@ namespace OnBoardy.API.Services
             if (!user.IsActive)
                 throw new AccountDisabledException();
 
+
             var access = _tokenService.CreateAccessToken(user);
             var refresh = await _tokenService.CreateRefreshTokenAsync(user.Id, ip);
 
-            return new AuthResponseDTO { AccessToken = access, RefreshToken = refresh.Token };
+            return new TokenDTO { AccessToken = access, RefreshToken = refresh.Token };
         }
 
-        public async Task<AuthResponseDTO> RefreshAsync(string refreshToken, string ip)
+        public async Task<TokenDTO> RefreshAsync(string refreshToken, string ip)
         {
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                throw new InvalidRefreshTokenException();
+
             var token = await _db.RefreshTokens
                 .Include(x => x.User)
                 .FirstOrDefaultAsync(x => x.Token == refreshToken)
@@ -94,7 +101,7 @@ namespace OnBoardy.API.Services
             var newRefresh = await _tokenService.CreateRefreshTokenAsync(token.User.Id, ip);
 
             await _db.SaveChangesAsync();
-            return new AuthResponseDTO { AccessToken = access, RefreshToken = newRefresh.Token };
+            return new TokenDTO { AccessToken = access, RefreshToken = newRefresh.Token };
         }
 
         public async Task VerifyEmailAsync(string token)
@@ -108,5 +115,6 @@ namespace OnBoardy.API.Services
 
             await _userService.VerifyEmailAsync(record.UserId);
         }
+
     }
 }

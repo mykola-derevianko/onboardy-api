@@ -42,7 +42,7 @@ namespace OnBoardy.API.Exceptions
                     Status = StatusCodes.Status500InternalServerError,
                     Title = "Internal Server Error",
                     Type = "server-error",
-                    Detail = "An unexpected error occurred. Please try again later."
+                    Detail = exception.Message
                 }
 
             };
