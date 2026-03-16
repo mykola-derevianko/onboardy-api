@@ -9,7 +9,6 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-
 //DB Context
 builder.Services.AddDbContext<AppDbContext>();
 
