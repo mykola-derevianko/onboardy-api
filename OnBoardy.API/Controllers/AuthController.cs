@@ -11,13 +11,17 @@ namespace OnBoardy.API.Controllers
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
-        private readonly IConfiguration _config;
+        private readonly ICookieService _cookieService;
 
 
-        public AuthController(IAuthService authService, IConfiguration config)
+        public AuthController(
+            IAuthService authService,
+            IConfiguration config,
+            IWebHostEnvironment webHostEnvironment,
+            ICookieService cookieService)
         {
             _authService = authService;
-            _config = config;
+            _cookieService = cookieService;
         }
 
         [HttpPost("register")]
@@ -33,7 +37,7 @@ namespace OnBoardy.API.Controllers
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var result = await _authService.LoginAsync(request, ip);
 
-            SetTokensInHttpOnlyCookies(result, HttpContext);
+            _cookieService.SetAuthCookies(result, HttpContext);
             return Ok(new { message = "Logged in successfully." });
         }
 
@@ -43,7 +47,7 @@ namespace OnBoardy.API.Controllers
             var refreshToken = Request.Cookies["refresh_token"] ?? throw new UnauthorizedAccessException();
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var result = await _authService.RefreshAsync(refreshToken, ip);
-            SetTokensInHttpOnlyCookies(result, HttpContext);
+            _cookieService.SetAuthCookies(result, HttpContext);
             return Ok(new { message = "Refresh successful." });
         }
 
@@ -60,44 +64,8 @@ namespace OnBoardy.API.Controllers
             var refreshToken = Request.Cookies["refresh_token"];
 
             await _authService.LogoutAsync(refreshToken);
-
-            var cookieOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(-1)
-            };
-
-            Response.Cookies.Append("access_token", string.Empty, cookieOptions);
-            Response.Cookies.Append("refresh_token", string.Empty, cookieOptions);
-
+            _cookieService.ClearAuthCookies(HttpContext);
             return Ok(new { message = "Logged out successfully." });
-        }
-
-        private void SetTokensInHttpOnlyCookies(TokenDTO token, HttpContext context)
-        {
-            if (!double.TryParse(_config["Jwt:ExpireMinutes"], out double expireMinutes))
-                expireMinutes = 60;
-            if (!double.TryParse(_config["Jwt:RefreshTokenExpireDays"], out double refreshTokenExpireDays))
-                refreshTokenExpireDays = 7;
-
-            var accessTokenOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddMinutes(expireMinutes)
-            };
-            var refreshTokenOptions = new CookieOptions
-            {
-                HttpOnly = true,
-                Secure = true,
-                SameSite = SameSiteMode.Strict,
-                Expires = DateTime.UtcNow.AddDays(refreshTokenExpireDays)
-            };
-            context.Response.Cookies.Append("access_token", token.AccessToken, accessTokenOptions);
-            context.Response.Cookies.Append("refresh_token", token.RefreshToken, refreshTokenOptions);
         }
 
     }
