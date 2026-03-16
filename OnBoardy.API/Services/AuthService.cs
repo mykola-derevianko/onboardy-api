@@ -18,6 +18,7 @@ namespace OnBoardy.API.Services
             IUserService userService,
             ITokenService tokenService,
             IEmailVerificationService emailVerification,
+            ICookieService cookieService,
             AppDbContext db)
         {
             _userService = userService;
