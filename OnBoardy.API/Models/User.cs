@@ -1,6 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
-
-namespace OnBoardy.API.Models
+﻿namespace OnBoardy.API.Models
 {
     public class User
     {

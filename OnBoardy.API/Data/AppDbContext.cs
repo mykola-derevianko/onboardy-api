@@ -8,6 +8,8 @@ namespace OnBoardy.API.Data
         private readonly IConfiguration _configuration;
 
         public required DbSet<User> Users { get; set; }
+        public required DbSet<Organization> Organizations { get; set; }
+        public required DbSet<Membership> Memberships { get; set; }
         public required DbSet<RefreshToken> RefreshTokens { get; set; }
         public required DbSet<EmailVerification> EmailVerification { get; set; }
 
@@ -30,7 +32,5 @@ namespace OnBoardy.API.Data
                 .UseNpgsql(connectionString)
                 .UseSnakeCaseNamingConvention();
         }
-
-
     }
 }
