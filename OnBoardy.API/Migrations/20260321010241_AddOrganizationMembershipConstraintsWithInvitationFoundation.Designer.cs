@@ -12,8 +12,8 @@ using OnBoardy.API.Data;
 namespace OnBoardy.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260319183556_AddOrganizationsAndMemberships")]
-    partial class AddOrganizationsAndMemberships
+    [Migration("20260321010241_AddOrganizationMembershipConstraintsWithInvitationFoundation")]
+    partial class AddOrganizationMembershipConstraintsWithInvitationFoundation
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -68,6 +68,76 @@ namespace OnBoardy.API.Migrations
                     b.ToTable("email_verification", (string)null);
                 });
 
+            modelBuilder.Entity("OnBoardy.API.Models.Invitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<DateTime?>("AcceptedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("accepted_at");
+
+                    b.PrimitiveCollection<string>("AssignedModules")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("assigned_modules");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now() at time zone 'utc'");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)")
+                        .HasColumnName("email");
+
+                    b.Property<DateTime?>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("expires_at");
+
+                    b.Property<Guid?>("InvitedBy")
+                        .HasColumnType("uuid")
+                        .HasColumnName("invited_by");
+
+                    b.Property<Guid>("OrganizationId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("organization_id");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("role");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("token");
+
+                    b.HasKey("Id")
+                        .HasName("pk_invitations");
+
+                    b.HasIndex("InvitedBy")
+                        .HasDatabaseName("ix_invitations_invited_by");
+
+                    b.HasIndex("OrganizationId")
+                        .HasDatabaseName("ix_invitations_organization_id");
+
+                    b.HasIndex("Token")
+                        .IsUnique()
+                        .HasDatabaseName("ix_invitations_token");
+
+                    b.ToTable("invitations", (string)null);
+                });
+
             modelBuilder.Entity("OnBoardy.API.Models.Membership", b =>
                 {
                     b.Property<Guid>("Id")
@@ -76,12 +146,10 @@ namespace OnBoardy.API.Migrations
                         .HasColumnName("id");
 
                     b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<DateTime?>("JoinedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("joined_at");
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now() at time zone 'utc'");
 
                     b.Property<Guid>("OrganizationId")
                         .HasColumnType("uuid")
@@ -105,8 +173,9 @@ namespace OnBoardy.API.Migrations
                     b.HasIndex("OrganizationId")
                         .HasDatabaseName("ix_memberships_organization_id");
 
-                    b.HasIndex("UserId")
-                        .HasDatabaseName("ix_memberships_user_id");
+                    b.HasIndex("UserId", "OrganizationId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_memberships_user_id_organization_id");
 
                     b.ToTable("memberships", (string)null);
                 });
@@ -265,6 +334,26 @@ namespace OnBoardy.API.Migrations
                         .HasConstraintName("fk_email_verification_users_user_id");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("OnBoardy.API.Models.Invitation", b =>
+                {
+                    b.HasOne("OnBoardy.API.Models.User", "InvitedByUser")
+                        .WithMany()
+                        .HasForeignKey("InvitedBy")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_invitations_users_invited_by");
+
+                    b.HasOne("OnBoardy.API.Models.Organization", "Organization")
+                        .WithMany()
+                        .HasForeignKey("OrganizationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_invitations_organizations_organization_id");
+
+                    b.Navigation("InvitedByUser");
+
+                    b.Navigation("Organization");
                 });
 
             modelBuilder.Entity("OnBoardy.API.Models.Membership", b =>

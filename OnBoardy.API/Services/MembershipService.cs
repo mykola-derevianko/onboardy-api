@@ -24,6 +24,12 @@ namespace OnBoardy.API.Services
             var organization = await _db.Organizations.FindAsync(organizationId)
                 ?? throw new OrganizationNotFoundException();
 
+            var alreadyMember = await _db.Memberships
+                .AnyAsync(x => x.UserId == userId && x.OrganizationId == organizationId);
+
+            if (alreadyMember)
+                throw new DomainException("User is already a member of this organization.");
+
             var now = DateTime.UtcNow;
 
             var membership = new Membership
@@ -35,7 +41,6 @@ namespace OnBoardy.API.Services
                 Organization = organization,
                 Role = role,
                 Status = MembershipStatus.Active,
-                JoinedAt = now,
                 CreatedAt = now
             };
 
@@ -57,6 +62,7 @@ namespace OnBoardy.API.Services
         {
             return await _db.Memberships
                 .AsNoTracking()
+                .Include(x => x.Organization)
                 .Where(x => x.UserId == userId && x.Status == MembershipStatus.Active)
                 .OrderBy(x => x.Organization.Name)
                 .ToListAsync();

@@ -14,7 +14,6 @@ namespace OnBoardy.API.Models
         public MembershipRole Role { get; set; }
         public MembershipStatus Status { get; set; }
 
-        public DateTime? JoinedAt { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

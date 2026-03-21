@@ -10,6 +10,7 @@ namespace OnBoardy.API.Data
         public required DbSet<User> Users { get; set; }
         public required DbSet<Organization> Organizations { get; set; }
         public required DbSet<Membership> Memberships { get; set; }
+        public required DbSet<Invitation> Invitations { get; set; }
         public required DbSet<RefreshToken> RefreshTokens { get; set; }
         public required DbSet<EmailVerification> EmailVerification { get; set; }
 

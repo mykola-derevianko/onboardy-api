@@ -45,12 +45,12 @@ namespace OnBoardy.API.Services
 
         public async Task<IReadOnlyCollection<Organization>> GetAllByUserIdAsync(Guid userId)
         {
-            return await _db.Memberships
-                .AsNoTracking()
-                .Where(x => x.UserId == userId && x.Status == MembershipStatus.Active)
+            var memberships = await _membershipService.GetByUserIdAsync(userId);
+
+            return memberships
                 .Select(x => x.Organization)
                 .OrderBy(x => x.Name)
-                .ToListAsync();
+                .ToList();
         }
 
         public async Task<Organization?> GetByIdAsync(Guid id)
