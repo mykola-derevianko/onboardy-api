@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using EntityFramework.Exceptions.PostgreSQL;
+using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Models;
 
 namespace OnBoardy.API.Data
@@ -31,7 +32,9 @@ namespace OnBoardy.API.Data
 
             optionsBuilder
                 .UseNpgsql(connectionString)
-                .UseSnakeCaseNamingConvention();
+                .UseSnakeCaseNamingConvention()
+                .UseExceptionProcessor();
+
         }
     }
 }

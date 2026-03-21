@@ -3,12 +3,8 @@ using Microsoft.AspNetCore.Mvc;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
 using OnBoardy.API.Exceptions.Domain;
-using OnBoardy.API.Exceptions.Identity;
 using OnBoardy.API.Extensions;
-using OnBoardy.API.Models;
 using OnBoardy.API.Services.Infrastructure;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 
 namespace OnBoardy.API.Controllers
 {
@@ -30,7 +26,7 @@ namespace OnBoardy.API.Controllers
             var currentUserId = User.GetUserId();
 
             var organization = await _organizationService.CreateAsync(request, currentUserId);
-            return CreatedAtAction(nameof(GetById), new { id = organization.Id }, Map(organization));
+            return CreatedAtAction(nameof(GetById), new { orgId = organization.Id }, organization.ToResponseDTO());
         }
 
         [HttpGet]
@@ -39,50 +35,45 @@ namespace OnBoardy.API.Controllers
             var currentUserId = User.GetUserId();
 
             var organizations = await _organizationService.GetAllByUserIdAsync(currentUserId);
-            return Ok(organizations.Select(Map).ToList());
+            return Ok(organizations.Select(x => x.ToResponseDTO()).ToList());
         }
 
-        [HttpGet("{id:guid}")]
-        public async Task<ActionResult<OrganizationResponseDTO>> GetById(Guid id)
+        [HttpGet("{orgId:guid}")]
+        public async Task<ActionResult<OrganizationResponseDTO>> GetById(Guid orgId)
         {
             var currentUserId = User.GetUserId();
 
             var organizations = await _organizationService.GetAllByUserIdAsync(currentUserId);
-            var organization = organizations.FirstOrDefault(x => x.Id == id)
+            var organization = organizations.FirstOrDefault(x => x.Id == orgId)
                 ?? throw new OrganizationNotFoundException();
 
-            return Ok(Map(organization));
+            return Ok(organization.ToResponseDTO());
         }
 
-        [HttpPatch("{id:guid}")]
-        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { MembershipRole.Owner })]
-        public async Task<ActionResult<OrganizationResponseDTO>> Update(Guid id, UpdateOrganizationRequestDTO request)
+        [HttpPatch("{orgId:guid}")]
+        [TypeFilter(
+            typeof(AuthorizeRoleFilter),
+            Arguments = new object[] { new[] { MembershipRole.Owner } }
+        )]
+        public async Task<ActionResult<OrganizationResponseDTO>> Update(Guid orgId, UpdateOrganizationRequestDTO request)
         {
             var currentUserId = User.GetUserId();
-            var organization = await _organizationService.UpdateAsync(id, request);
-            return Ok(Map(organization));
+            var organization = await _organizationService.UpdateAsync(orgId, request);
+            return Ok(organization.ToResponseDTO());
         }
 
-        [HttpDelete("{id:guid}")]
-        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { MembershipRole.Owner })]
-        public async Task<IActionResult> Delete(Guid id)
+        [HttpDelete("{orgId:guid}")]
+        [TypeFilter(
+            typeof(AuthorizeRoleFilter),
+            Arguments = new object[] { new[] { MembershipRole.Owner } }
+        )]
+
+        public async Task<IActionResult> Delete(Guid orgId)
         {
             var currentUserId = User.GetUserId();
 
-            await _organizationService.DeleteAsync(id);
+            await _organizationService.DeleteAsync(orgId);
             return NoContent();
-        }
-
-        private static OrganizationResponseDTO Map(Organization organization)
-        {
-            return new OrganizationResponseDTO
-            {
-                Id = organization.Id,
-                Name = organization.Name,
-                Description = organization.Description,
-                CreatedAt = organization.CreatedAt,
-                UpdatedAt = organization.UpdatedAt
-            };
         }
     }
 }

@@ -16,13 +16,13 @@ namespace OnBoardy.API.Data.Configurations
             builder.Property(i => i.Role)
                 .HasConversion(
                     v => v.ToString().ToLowerInvariant(),
-                    v => Enum.Parse<OnBoardy.API.Enums.MembershipRole>(v, true))
+                    v => Enum.Parse<Enums.MembershipRole>(v, true))
                 .IsRequired();
 
             builder.Property(i => i.Status)
                 .HasConversion(
                     v => v.ToString().ToLowerInvariant(),
-                    v => Enum.Parse<OnBoardy.API.Enums.InvitationStatus>(v, true))
+                    v => Enum.Parse<Enums.InvitationStatus>(v, true))
                 .IsRequired();
 
             builder.Property(i => i.AssignedModules)

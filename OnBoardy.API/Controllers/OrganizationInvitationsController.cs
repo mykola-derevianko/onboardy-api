@@ -10,50 +10,63 @@ namespace OnBoardy.API.Controllers
     [ApiController]
     [Route("api/organization/{orgId}/invitation")]
     [Authorize]
-    
     public class OrganizationInvitationsController : ControllerBase
     {
         private readonly IInvitationService _invitationService;
 
-        public OrganizationInvitationsController(IInvitationService invitationService) {
+        public OrganizationInvitationsController(IInvitationService invitationService)
+        {
             _invitationService = invitationService;
         }
-        
+
+        [HttpPost]
         [TypeFilter(
             typeof(AuthorizeRoleFilter),
             Arguments = new object[] { new[] { MembershipRole.Owner } }
         )]
-        [HttpPost]
-        public async Task<IActionResult> Create(CreateInvitationRequestDTO request, Guid orgId) {
+        public async Task<ActionResult<InvitationResponseDTO>> Create(CreateInvitationRequestDTO request, Guid orgId)
+        {
             var invitedByUserId = User.GetUserId();
-
             var invitation = await _invitationService.CreateAsync(orgId, invitedByUserId, request);
 
-
-            //TODO: Send email notification to the invited user with the invitation link, if email is provided;
-            //  return link in response body
             return CreatedAtAction(
                 nameof(Accept),
-                new { orgId, token = invitation!.Token },
-                new
-                {
-                    invitation.Id,
-                    invitation.Token,
-                    invitation.ExpiresAt
-                });
+                new { token = invitation!.Token },
+                invitation!.ToResponseDTO());
         }
 
-        //[HttpGet]
-        //public async Task<IActionResult> GetByOrganization(Guid orgId, [FromQuery] InvitationStatus? status) { }
+        [HttpGet]
+        [TypeFilter(
+            typeof(AuthorizeRoleFilter),
+            Arguments = new object[] { new[] { MembershipRole.Owner } }
+        )]
+        public async Task<ActionResult<IReadOnlyCollection<InvitationResponseDTO>>> GetByOrganization(Guid orgId)
+        {
+            var invitations = await _invitationService.GetByOrganizationAsync(orgId);
+            return Ok(invitations.Select(x => x.ToResponseDTO()).ToList());
+        }
 
-        //[HttpDelete("{invitationId}")]
-        //public async Task<IActionResult> Delete(Guid orgId, Guid invitationId) { }
+        [HttpDelete("{invitationId:guid}")]
+        [TypeFilter(
+            typeof(AuthorizeRoleFilter),
+            Arguments = new object[] { new[] { MembershipRole.Owner } }
+        )]
+        public async Task<IActionResult> Delete(Guid orgId, Guid invitationId)
+        {
+            await _invitationService.DeleteAsync(orgId, invitationId);
+            return NoContent();
+        }
 
-        [HttpPost("{token}/accept")]
-        public async Task<IActionResult> Accept(Guid orgId, string token) {
+        [HttpPost("/api/invitations/{token}/accept")]
+        public async Task<ActionResult<AcceptInvitationResponseDTO>> Accept(string token)
+        {
             var currentUserId = User.GetUserId();
-            var result = await _invitationService.AcceptAsync(orgId, currentUserId, token);
-            return Ok(result);
+            var result = await _invitationService.AcceptAsync(currentUserId, token);
+
+            return Ok(new AcceptInvitationResponseDTO
+            {
+                Success = result
+            });
         }
     }
 }

@@ -24,7 +24,7 @@ public class AuthorizeRoleFilter : IAsyncActionFilter
             throw new InvalidUserContextException();
         }
 
-        if (!context.ActionArguments.TryGetValue("id", out var idObj) || idObj is not Guid organizationId)
+        if (!context.ActionArguments.TryGetValue("orgId", out var idObj) || idObj is not Guid organizationId)
             throw new InvalidOrganizationContextException();
 
         var memberships = await _membershipService.GetByUserIdAsync(userId);
