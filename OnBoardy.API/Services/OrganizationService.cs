@@ -19,7 +19,7 @@ namespace OnBoardy.API.Services
             _membershipService = membershipService;
         }
 
-        public async Task<Organization> CreateAsync(CreateOrganizationRequestDTO request, Guid userId)
+        public async Task<Organization> CreateAsync(CreateOrganizationRequest request, Guid userId)
         {
             var user = await _db.Users.FindAsync(userId)
                 ?? throw new UserNotFoundException();
@@ -63,7 +63,7 @@ namespace OnBoardy.API.Services
             return await _db.Organizations.FindAsync(id);
         }
 
-        public async Task<Organization> UpdateAsync(Guid id, UpdateOrganizationRequestDTO request)
+        public async Task<Organization> UpdateAsync(Guid id, UpdateOrganizationRequest request)
         {
             var organization = await GetByIdAsync(id) ?? throw new OrganizationNotFoundException();
 

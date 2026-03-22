@@ -27,13 +27,13 @@ namespace OnBoardy.API.Services
             _db = db;
         }
 
-        public async Task RegisterAsync(RegisterRequestDTO request)
+        public async Task RegisterAsync(RegisterRequest request)
         {
             var user = await _userService.CreateAsync(request);
             await _emailVerification.SendVerificationEmailAsync(user);
         }
 
-        public async Task<TokenDTO> LoginAsync(LoginRequestDTO request, string ip)
+        public async Task<TokenDTO> LoginAsync(LoginRequest request, string ip)
         {
             var user = await _userService.GetByEmailAsync(request.Email)
                 ?? throw new UserNotFoundException();

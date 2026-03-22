@@ -21,7 +21,7 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<OrganizationResponseDTO>> Create(CreateOrganizationRequestDTO request)
+        public async Task<ActionResult<OrganizationResponse>> Create(CreateOrganizationRequest request)
         {
             var currentUserId = User.GetUserId();
 
@@ -30,7 +30,7 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IReadOnlyCollection<OrganizationResponseDTO>>> GetMyOrganizations(
+        public async Task<ActionResult<IReadOnlyCollection<OrganizationResponse>>> GetMyOrganizations(
             [FromQuery(Name = "filterBy:membershipRole")] string? membershipRole = null)
         {
             var currentUserId = User.GetUserId();
@@ -54,7 +54,7 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpGet("{orgId:guid}")]
-        public async Task<ActionResult<OrganizationResponseDTO>> GetById(Guid orgId)
+        public async Task<ActionResult<OrganizationResponse>> GetById(Guid orgId)
         {
             var currentUserId = User.GetUserId();
 
@@ -70,7 +70,7 @@ namespace OnBoardy.API.Controllers
             typeof(AuthorizeRoleFilter),
             Arguments = new object[] { new[] { MembershipRole.Owner } }
         )]
-        public async Task<ActionResult<OrganizationResponseDTO>> Update(Guid orgId, UpdateOrganizationRequestDTO request)
+        public async Task<ActionResult<OrganizationResponse>> Update(Guid orgId, UpdateOrganizationRequest request)
         {
             var currentUserId = User.GetUserId();
             var organization = await _organizationService.UpdateAsync(orgId, request);

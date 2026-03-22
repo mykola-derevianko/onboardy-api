@@ -2,7 +2,7 @@
 
 namespace OnBoardy.API.DTOs
 {
-    public record LoginRequestDTO
+    public record RegisterRequest
     {
         [Required]
         [EmailAddress]
@@ -11,5 +11,13 @@ namespace OnBoardy.API.DTOs
         [Required]
         [MinLength(8)]
         public required string Password { get; init; }
+
+        [Required]
+        [MinLength(2)]
+        public required string FirstName { get; init; }
+
+        [Required]
+        [MinLength(2)]
+        public required string LastName { get; init; }
     }
 }

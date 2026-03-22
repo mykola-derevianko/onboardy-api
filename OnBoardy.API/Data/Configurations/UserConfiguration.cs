@@ -37,6 +37,11 @@ namespace OnBoardy.API.Data.Configurations
             builder.Property(u => u.CreatedAt)
                 .HasDefaultValueSql("now() at time zone 'utc'")
                 .IsRequired();
+
+            builder.Property(u => u.ProfilePictureBlobName)
+                .HasMaxLength(500)
+                .IsRequired(false);
+
         }
     }
 }

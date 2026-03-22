@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using OnBoardy.API.Constants;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
@@ -10,13 +11,15 @@ namespace OnBoardy.API.Services
     public class UserService : IUserService
     {
         private readonly AppDbContext _db;
+        private readonly IBlobService _blobService;
 
-        public UserService(AppDbContext db)
+        public UserService(AppDbContext db, IBlobService blobService)
         {
             _db = db;
+            _blobService = blobService;
         }
 
-        public async Task<User> CreateAsync(RegisterRequestDTO registerRequest)
+        public async Task<User> CreateAsync(RegisterRequest registerRequest)
         {
             if (await EmailExistsAsync(registerRequest.Email))
                 throw new EmailAlreadyRegisteredException();
@@ -51,7 +54,7 @@ namespace OnBoardy.API.Services
             return await _db.Users.FindAsync(id);
         }
 
-        public async Task<User> UpdateAsync(Guid id, UpdateUserRequestDTO request)
+        public async Task<User> UpdateAsync(Guid id, UpdateUserRequest request)
         {
             var user = await GetByIdAsync(id) ?? throw new UserNotFoundException();
 
@@ -99,6 +102,31 @@ namespace OnBoardy.API.Services
         public async Task<bool> EmailExistsAsync(string email)
         {
             return await _db.Users.AnyAsync(x => x.Email == email);
+        }
+
+        public UploadSasResponse GenerateProfilePictureUpload(Guid userId, string fileName)
+        {
+            var extension = Path.GetExtension(fileName).ToLower();
+            var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            if (!allowed.Contains(extension))
+                throw new DomainException("Invalid file type");
+
+            return _blobService.GenerateUploadSas(BlobContainers.ProfilePictures, userId, extension);
+        }
+
+        public async Task SaveProfilePictureAsync(Guid userId, string blobName)
+        {
+            var user = await _db.Users.FindAsync(userId) ?? throw new UserNotFoundException();
+
+            if (!string.IsNullOrEmpty(user.ProfilePictureBlobName))
+            {
+                await _blobService.DeleteAsync(BlobContainers.ProfilePictures, user.ProfilePictureBlobName);
+            }
+
+            user.ProfilePictureBlobName = blobName;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync();
         }
     }
 }

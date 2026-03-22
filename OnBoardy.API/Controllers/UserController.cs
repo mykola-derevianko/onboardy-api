@@ -1,10 +1,8 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OnBoardy.API.Constants;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
-using OnBoardy.API.Exceptions.Identity;
 using OnBoardy.API.Extensions;
 using OnBoardy.API.Services.Infrastructure;
 
@@ -16,78 +14,80 @@ namespace OnBoardy.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IBlobService _blobService;
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, IBlobService blobService)
         {
             _userService = userService;
+            _blobService = blobService;
         }
 
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> Create(RegisterRequestDTO request)
+        public async Task<IActionResult> Create(RegisterRequest request)
         {
             var user = await _userService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user.ToResponseDTO());
-        }
-
-        [HttpGet("{id:guid}")]
-        public async Task<ActionResult<UserResponseDTO>> GetById(Guid id)
-        {
-            EnsureSelfAccess(id);
-
-            var user = await _userService.GetByIdAsync(id)
-                ?? throw new UserNotFoundException();
-
-            return Ok(user.ToResponseDTO());
-        }
-
-        [HttpPatch("{id:guid}")]
-        public async Task<ActionResult<UserResponseDTO>> Update(Guid id, UpdateUserRequestDTO request)
-        {
-            EnsureSelfAccess(id);
-
-            var user = await _userService.UpdateAsync(id, request);
-            return Ok(user.ToResponseDTO());
-        }
-
-        [HttpDelete("{id:guid}")]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            EnsureSelfAccess(id);
-
-            await _userService.DeleteAsync(id);
-            return NoContent();
+            return CreatedAtAction(nameof(GetMe), user.ToResponseDTO());
         }
 
         [HttpGet("me")]
-        public async Task<ActionResult<UserResponseDTO>> GetMe()
+        public async Task<ActionResult<UserResponse>> GetMe()
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = User.GetUserId();
 
             var user = await _userService.GetByIdAsync(currentUserId)
                 ?? throw new UserNotFoundException();
 
+            var response = user.ToResponseDTO();
+
+            if (!string.IsNullOrWhiteSpace(user.ProfilePictureBlobName))
+            {
+                var readUrl = _blobService.GenerateReadSas(
+                    BlobContainers.ProfilePictures,
+                    user.ProfilePictureBlobName);
+
+                response = response with { ProfilePictureUrl = readUrl };
+            }
+
+            return Ok(response);
+        }
+
+        [HttpPatch("me")]
+        public async Task<ActionResult<UserResponse>> UpdateMe(UpdateUserRequest request)
+        {
+            var currentUserId = User.GetUserId();
+
+            var user = await _userService.UpdateAsync(currentUserId, request);
             return Ok(user.ToResponseDTO());
         }
 
-        private Guid GetCurrentUserId()
+        [HttpDelete("me")]
+        public async Task<IActionResult> DeleteMe()
         {
-            var subject =
-                User.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
-                User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentUserId = User.GetUserId();
 
-            if (!Guid.TryParse(subject, out var userId))
-                throw new InvalidUserContextException();
-
-            return userId;
+            await _userService.DeleteAsync(currentUserId);
+            return NoContent();
         }
 
-        private void EnsureSelfAccess(Guid targetUserId)
+        [HttpPost("me/profile-picture/upload-url")]
+        public IActionResult GetUploadUrl([FromBody] UploadRequest request)
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = User.GetUserId();
 
-            if (currentUserId != targetUserId)
-                throw new InsufficientPermissionsException();
+            var result = _userService.GenerateProfilePictureUpload(currentUserId, request.FileName);
+
+            return Ok(result);
+        }
+
+        [HttpPost("me/profile-picture")]
+        public async Task<IActionResult> SaveProfilePicture([FromBody] SaveRequest request)
+        {
+            var userId = User.GetUserId();
+
+            await _userService.SaveProfilePictureAsync(userId, request.BlobName);
+
+            return Ok();
         }
     }
 }

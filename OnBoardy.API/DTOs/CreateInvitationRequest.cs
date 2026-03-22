@@ -3,7 +3,7 @@ using OnBoardy.API.Enums;
 
 namespace OnBoardy.API.DTOs
 {
-    public record CreateInvitationRequestDTO
+    public record CreateInvitationRequest
     {
         [EmailAddress]
         public string? Email { get; init; }

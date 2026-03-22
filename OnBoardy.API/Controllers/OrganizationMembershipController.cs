@@ -22,7 +22,7 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<MembershipResponseDTO>> GetCurrentUserMembership(Guid orgId)
+        public async Task<ActionResult<MembershipResponse>> GetCurrentUserMembership(Guid orgId)
         {
             var currentUserId = User.GetUserId();
 
@@ -38,7 +38,7 @@ namespace OnBoardy.API.Controllers
             typeof(AuthorizeRoleFilter),
             Arguments = new object[] { new[] { MembershipRole.Owner } }
         )]
-        public async Task<ActionResult<IReadOnlyCollection<MembershipResponseDTO>>> GetAllByOrganization(Guid orgId)
+        public async Task<ActionResult<IReadOnlyCollection<MembershipResponse>>> GetAllByOrganization(Guid orgId)
         {
             var memberships = await _membershipService.GetAllByOrganizationIdAsync(orgId);
             return Ok(memberships.Select(x => x.ToResponseDTO()).ToList());

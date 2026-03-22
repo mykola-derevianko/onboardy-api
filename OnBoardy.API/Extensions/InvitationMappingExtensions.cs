@@ -7,9 +7,9 @@ namespace OnBoardy.API.Extensions
     {
         extension(Invitation invitation)
         {
-            public InvitationResponseDTO ToResponseDTO()
+            public InvitationResponse ToResponseDTO()
             {
-                return new InvitationResponseDTO
+                return new InvitationResponse
                 {
                     Id = invitation.Id,
                     Email = invitation.Email,

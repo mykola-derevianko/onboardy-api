@@ -1,6 +1,6 @@
 namespace OnBoardy.API.DTOs
 {
-    public record OrganizationResponseDTO
+    public record OrganizationResponse
     {
         public required Guid Id { get; init; }
         public required string Name { get; init; }
