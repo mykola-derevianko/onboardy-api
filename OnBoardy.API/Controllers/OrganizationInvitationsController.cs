@@ -8,7 +8,7 @@ using OnBoardy.API.Services.Infrastructure;
 namespace OnBoardy.API.Controllers
 {
     [ApiController]
-    [Route("api/organization/{orgId}/invitation")]
+    [Route("api/organizations/{orgId}/invitations")]
     [Authorize]
     public class OrganizationInvitationsController : ControllerBase
     {

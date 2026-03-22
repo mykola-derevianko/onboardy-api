@@ -7,8 +7,8 @@ namespace OnBoardy.API.DTOs
         public required Guid Id { get; init; }
         public required Guid UserId { get; init; }
         public required Guid OrganizationId { get; init; }
-        public required MembershipRole Role { get; init; }
-        public required MembershipStatus Status { get; init; }
+        public required string Role { get; init; }
+        public required string Status { get; init; }
         public DateTime CreatedAt { get; init; }
     }
 }

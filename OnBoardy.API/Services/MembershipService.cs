@@ -50,7 +50,7 @@ namespace OnBoardy.API.Services
             return membership;
         }
 
-        public async Task<IReadOnlyCollection<Membership>> GetByOrganizationIdAsync(Guid organizationId)
+        public async Task<IReadOnlyCollection<Membership>> GetAllByOrganizationIdAsync(Guid organizationId)
         {
             return await _db.Memberships
                 .AsNoTracking()
@@ -58,7 +58,7 @@ namespace OnBoardy.API.Services
                 .ToListAsync();
         }
 
-        public async Task<IReadOnlyCollection<Membership>> GetByUserIdAsync(Guid userId)
+        public async Task<IReadOnlyCollection<Membership>> GetAllByUserIdAsync(Guid userId)
         {
             return await _db.Memberships
                 .AsNoTracking()

@@ -14,8 +14,8 @@ namespace OnBoardy.API.Extensions
                     Id = membership.Id,
                     UserId = membership.UserId,
                     OrganizationId = membership.OrganizationId,
-                    Role = membership.Role,
-                    Status = membership.Status,
+                    Role = membership.Role.ToString(),
+                    Status = membership.Status.ToString(),
                     CreatedAt = membership.CreatedAt
                 };
             }

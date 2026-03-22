@@ -7,9 +7,9 @@ namespace OnBoardy.API.Services.Infrastructure
     {
         Task<Membership> CreateAsync(Guid userId, Guid organizationId, MembershipRole role = MembershipRole.Owner);
 
-        Task<IReadOnlyCollection<Membership>> GetByOrganizationIdAsync(Guid organizationId);
+        Task<IReadOnlyCollection<Membership>> GetAllByOrganizationIdAsync(Guid organizationId);
 
-        Task<IReadOnlyCollection<Membership>> GetByUserIdAsync(Guid userId);
+        Task<IReadOnlyCollection<Membership>> GetAllByUserIdAsync(Guid userId);
 
         Task<Membership?> GetByIdAsync(Guid id);
 

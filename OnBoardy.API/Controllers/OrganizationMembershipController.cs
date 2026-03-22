@@ -10,7 +10,7 @@ using System.Net;
 namespace OnBoardy.API.Controllers
 {
     [ApiController]
-    [Route("api/organization/{orgId}/membership")]
+    [Route("api/organizations/{orgId}/memberships")]
     [Authorize]
     public class OrganizationMembershipController : ControllerBase
     {
@@ -26,13 +26,13 @@ namespace OnBoardy.API.Controllers
         {
             var currentUserId = User.GetUserId();
 
-            var memberships = await _membershipService.GetByUserIdAsync(currentUserId);
+            var memberships = await _membershipService.GetAllByUserIdAsync(currentUserId);
             var membership = memberships.FirstOrDefault(x => x.OrganizationId == orgId)
                 ?? throw new DomainException("Membership not found.", HttpStatusCode.NotFound);
 
             return Ok(membership.ToResponseDTO());
         }
-
+            
         [HttpGet("all")]
         [TypeFilter(
             typeof(AuthorizeRoleFilter),
@@ -40,7 +40,7 @@ namespace OnBoardy.API.Controllers
         )]
         public async Task<ActionResult<IReadOnlyCollection<MembershipResponseDTO>>> GetAllByOrganization(Guid orgId)
         {
-            var memberships = await _membershipService.GetByOrganizationIdAsync(orgId);
+            var memberships = await _membershipService.GetAllByOrganizationIdAsync(orgId);
             return Ok(memberships.Select(x => x.ToResponseDTO()).ToList());
         }
     }

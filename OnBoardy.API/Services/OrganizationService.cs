@@ -43,11 +43,16 @@ namespace OnBoardy.API.Services
             return organization;
         }
 
-        public async Task<IReadOnlyCollection<Organization>> GetAllByUserIdAsync(Guid userId)
+        public async Task<IReadOnlyCollection<Organization>> GetAllByUserIdAsync(Guid userId, MembershipRole? membershipRole = null)
         {
-            var memberships = await _membershipService.GetByUserIdAsync(userId);
+            var memberships = await _membershipService.GetAllByUserIdAsync(userId);
 
-            return memberships
+            IEnumerable<Membership> filteredMemberships = memberships;
+
+            if (membershipRole.HasValue)
+                filteredMemberships = filteredMemberships.Where(x => x.Role == membershipRole.Value);
+
+            return filteredMemberships
                 .Select(x => x.Organization)
                 .OrderBy(x => x.Name)
                 .ToList();

@@ -3,7 +3,7 @@
     public enum MembershipRole
     {
         Owner = 0,
-        Editor = 1,
+        Admin = 1,
         Employee = 2
     }
 }

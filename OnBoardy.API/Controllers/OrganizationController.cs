@@ -9,7 +9,7 @@ using OnBoardy.API.Services.Infrastructure;
 namespace OnBoardy.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/organizations")]
     [Authorize]
     public class OrganizationController : ControllerBase
     {
@@ -30,11 +30,26 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IReadOnlyCollection<OrganizationResponseDTO>>> GetMyOrganizations()
+        public async Task<ActionResult<IReadOnlyCollection<OrganizationResponseDTO>>> GetMyOrganizations(
+            [FromQuery(Name = "filterBy:membershipRole")] string? membershipRole = null)
         {
             var currentUserId = User.GetUserId();
 
-            var organizations = await _organizationService.GetAllByUserIdAsync(currentUserId);
+            MembershipRole? parsedRole = null;
+
+            if (!string.IsNullOrWhiteSpace(membershipRole))
+            {
+                var isValid =
+                    Enum.TryParse<MembershipRole>(membershipRole, ignoreCase: true, out var role) &&
+                    Enum.IsDefined(role);
+
+                if (!isValid)
+                    throw new DomainException("Invalid filterBy:membershipRole. Allowed values: Owner, Admin, Employee.");
+
+                parsedRole = role;
+            }
+
+            var organizations = await _organizationService.GetAllByUserIdAsync(currentUserId, parsedRole);
             return Ok(organizations.Select(x => x.ToResponseDTO()).ToList());
         }
 
