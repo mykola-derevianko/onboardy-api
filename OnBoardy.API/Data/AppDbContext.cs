@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using EntityFramework.Exceptions.PostgreSQL;
+using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Models;
 
 namespace OnBoardy.API.Data
@@ -8,6 +9,9 @@ namespace OnBoardy.API.Data
         private readonly IConfiguration _configuration;
 
         public required DbSet<User> Users { get; set; }
+        public required DbSet<Organization> Organizations { get; set; }
+        public required DbSet<Membership> Memberships { get; set; }
+        public required DbSet<Invitation> Invitations { get; set; }
         public required DbSet<RefreshToken> RefreshTokens { get; set; }
         public required DbSet<EmailVerification> EmailVerification { get; set; }
 
@@ -28,9 +32,9 @@ namespace OnBoardy.API.Data
 
             optionsBuilder
                 .UseNpgsql(connectionString)
-                .UseSnakeCaseNamingConvention();
+                .UseSnakeCaseNamingConvention()
+                .UseExceptionProcessor();
+
         }
-
-
     }
 }

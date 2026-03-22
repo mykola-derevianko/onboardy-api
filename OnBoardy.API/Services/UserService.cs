@@ -41,7 +41,9 @@ namespace OnBoardy.API.Services
 
         public async Task<User?> GetByEmailAsync(string email)
         {
-            return await _db.Users.FirstOrDefaultAsync(x => x.Email == email);
+            return await _db.Users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Email == email);
         }
 
         public async Task<User?> GetByIdAsync(Guid id)

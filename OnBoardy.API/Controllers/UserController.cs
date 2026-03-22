@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Exceptions.Identity;
-using OnBoardy.API.Models;
+using OnBoardy.API.Extensions;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Controllers
@@ -27,19 +27,18 @@ namespace OnBoardy.API.Controllers
         public async Task<IActionResult> Create(RegisterRequestDTO request)
         {
             var user = await _userService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, Map(user));
+            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user.ToResponseDTO());
         }
 
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<UserResponseDTO>> GetById(Guid id)
         {
-            //Method declared for further use
             EnsureSelfAccess(id);
 
             var user = await _userService.GetByIdAsync(id)
                 ?? throw new UserNotFoundException();
 
-            return Ok(Map(user));
+            return Ok(user.ToResponseDTO());
         }
 
         [HttpPatch("{id:guid}")]
@@ -48,7 +47,7 @@ namespace OnBoardy.API.Controllers
             EnsureSelfAccess(id);
 
             var user = await _userService.UpdateAsync(id, request);
-            return Ok(Map(user));
+            return Ok(user.ToResponseDTO());
         }
 
         [HttpDelete("{id:guid}")]
@@ -68,7 +67,7 @@ namespace OnBoardy.API.Controllers
             var user = await _userService.GetByIdAsync(currentUserId)
                 ?? throw new UserNotFoundException();
 
-            return Ok(Map(user));
+            return Ok(user.ToResponseDTO());
         }
 
         private Guid GetCurrentUserId()
@@ -89,21 +88,6 @@ namespace OnBoardy.API.Controllers
 
             if (currentUserId != targetUserId)
                 throw new InsufficientPermissionsException();
-        }
-
-        private static UserResponseDTO Map(User user)
-        {
-            return new UserResponseDTO
-            {
-                Id = user.Id,
-                Email = user.Email,
-                FirstName = user.FirstName,
-                LastName = user.LastName,
-                IsActive = user.IsActive,
-                EmailVerified = user.EmailVerified,
-                CreatedAt = user.CreatedAt,
-                UpdatedAt = user.UpdatedAt
-            };
         }
     }
 }
