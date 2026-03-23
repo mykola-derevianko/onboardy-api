@@ -104,23 +104,34 @@ namespace OnBoardy.API.Services
             return await _db.Users.AnyAsync(x => x.Email == email);
         }
 
-        public UploadSasResponse GenerateProfilePictureUpload(Guid userId, string fileName)
+        public async Task SaveProfilePictureAsync(
+            Guid userId,
+            Stream content,
+            string fileName,
+            string contentType,
+            CancellationToken cancellationToken = default)
         {
-            var extension = Path.GetExtension(fileName).ToLower();
+            var user = await _db.Users.FindAsync(userId) ?? throw new UserNotFoundException();
+
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
             var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
             if (!allowed.Contains(extension))
                 throw new DomainException("Invalid file type");
 
-            return _blobService.GenerateUploadSas(BlobContainers.ProfilePictures, userId, extension);
-        }
+            var blobName = $"{userId:N}/{Guid.NewGuid():N}{extension}";
 
-        public async Task SaveProfilePictureAsync(Guid userId, string blobName)
-        {
-            var user = await _db.Users.FindAsync(userId) ?? throw new UserNotFoundException();
+            await _blobService.UploadAsync(
+                BlobContainers.ProfilePictures,
+                blobName,
+                content,
+                contentType,
+                cancellationToken);
 
             if (!string.IsNullOrEmpty(user.ProfilePictureBlobName))
             {
-                await _blobService.DeleteAsync(BlobContainers.ProfilePictures, user.ProfilePictureBlobName);
+                await _blobService.DeleteAsync(
+                    BlobContainers.ProfilePictures,
+                    user.ProfilePictureBlobName);
             }
 
             user.ProfilePictureBlobName = blobName;

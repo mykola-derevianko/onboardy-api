@@ -1,7 +1,7 @@
 ﻿using Azure.Storage;
 using Azure.Storage.Blobs;
+using Azure.Storage.Blobs.Models;
 using Azure.Storage.Sas;
-using OnBoardy.API.DTOs;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Services
@@ -28,37 +28,6 @@ namespace OnBoardy.API.Services
             return client.GetBlobContainerClient(containerName);
         }
 
-        public UploadSasResponse GenerateUploadSas(
-            string containerName, Guid userId, string extension)
-        {
-            var container = GetContainerClient(containerName);
-
-            var blobName = $"{userId}/{Guid.NewGuid()}{extension}";
-
-            var blobClient = container.GetBlobClient(blobName);
-
-            var sasBuilder = new BlobSasBuilder
-            {
-                BlobContainerName = container.Name,
-                BlobName = blobName,
-                Resource = "b",
-                ExpiresOn = DateTimeOffset.UtcNow.AddMinutes(10)
-            };
-
-            sasBuilder.SetPermissions(BlobSasPermissions.Write);
-
-            var token = sasBuilder.ToSasQueryParameters(
-                new StorageSharedKeyCredential(_accountName, _accountKey));
-
-            var uploadUrl = $"{blobClient.Uri}?{token}";
-
-            return new UploadSasResponse
-            {
-                UploadUrl = uploadUrl,
-                BlobName = blobName
-            };
-        }
-
         public string GenerateReadSas(string containerName, string blobName)
         {
             var container = GetContainerClient(containerName);
@@ -78,6 +47,31 @@ namespace OnBoardy.API.Services
                 new StorageSharedKeyCredential(_accountName, _accountKey));
 
             return $"{blobClient.Uri}?{token}";
+        }
+
+        public async Task UploadAsync(
+            string containerName,
+            string blobName,
+            Stream content,
+            string contentType,
+            CancellationToken cancellationToken = default)
+        {
+            var container = GetContainerClient(containerName);
+            await container.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+
+            var blobClient = container.GetBlobClient(blobName);
+
+            var options = new BlobUploadOptions
+            {
+                HttpHeaders = new BlobHttpHeaders
+                {
+                    ContentType = string.IsNullOrWhiteSpace(contentType)
+                        ? "application/octet-stream"
+                        : contentType
+                }
+            };
+
+            await blobClient.UploadAsync(content, options, cancellationToken);
         }
 
         public async Task DeleteAsync(string containerName, string blobName)

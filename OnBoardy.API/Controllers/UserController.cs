@@ -13,6 +13,8 @@ namespace OnBoardy.API.Controllers
     [Authorize]
     public class UserController : ControllerBase
     {
+        private const long MaxProfilePictureBytes = 2 * 1024 * 1024;
+
         private readonly IUserService _userService;
         private readonly IBlobService _blobService;
 
@@ -70,24 +72,33 @@ namespace OnBoardy.API.Controllers
             return NoContent();
         }
 
-        [HttpPost("me/profile-picture/upload-url")]
-        public IActionResult GetUploadUrl([FromBody] UploadRequest request)
-        {
-            var currentUserId = User.GetUserId();
-
-            var result = _userService.GenerateProfilePictureUpload(currentUserId, request.FileName);
-
-            return Ok(result);
-        }
-
         [HttpPost("me/profile-picture")]
-        public async Task<IActionResult> SaveProfilePicture([FromBody] SaveRequest request)
+        [RequestSizeLimit(MaxProfilePictureBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = MaxProfilePictureBytes)]
+        public async Task<IActionResult> UploadProfilePicture(IFormFile file, CancellationToken cancellationToken)
         {
+            if (file is null || file.Length == 0)
+                throw new DomainException("File is required.");
+
+            var allowedContentTypes = new[] { "image/png", "image/jpg", "image/jpeg", "image/webp" };
+
+            if (!allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
+                return BadRequest("Invalid file type");
+
+            if (file.Length > MaxProfilePictureBytes)
+                return StatusCode(StatusCodes.Status413PayloadTooLarge);
+
+            await using var stream = file.OpenReadStream();
+
             var userId = User.GetUserId();
+            await _userService.SaveProfilePictureAsync(
+                userId,
+                stream,
+                file.FileName,
+                file.ContentType ?? "application/octet-stream",
+                cancellationToken);
 
-            await _userService.SaveProfilePictureAsync(userId, request.BlobName);
-
-            return Ok();
+            return Ok(new { message = "Profile picture updated successfully." });
         }
     }
 }

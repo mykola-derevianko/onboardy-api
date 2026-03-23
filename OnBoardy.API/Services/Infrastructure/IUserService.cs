@@ -19,7 +19,11 @@ namespace OnBoardy.API.Services.Infrastructure
 
         Task<bool> EmailExistsAsync(string email);
 
-        UploadSasResponse GenerateProfilePictureUpload(Guid userId, string fileName);
-        Task SaveProfilePictureAsync(Guid userId, string blobName);
+        Task SaveProfilePictureAsync(
+            Guid userId,
+            Stream content,
+            string fileName,
+            string contentType,
+            CancellationToken cancellationToken = default);
     }
 }
