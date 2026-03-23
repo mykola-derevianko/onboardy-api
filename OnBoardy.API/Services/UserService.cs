@@ -10,8 +10,13 @@ namespace OnBoardy.API.Services
 {
     public class UserService : IUserService
     {
+
+        private static readonly HashSet<string> AllowedContentTypes = [ ".jpg", ".jpeg", ".png", ".webp" ];
+
+
         private readonly AppDbContext _db;
         private readonly IBlobService _blobService;
+
 
         public UserService(AppDbContext db, IBlobService blobService)
         {
@@ -114,8 +119,7 @@ namespace OnBoardy.API.Services
             var user = await _db.Users.FindAsync(userId) ?? throw new UserNotFoundException();
 
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
-            var allowed = new[] { ".jpg", ".jpeg", ".png", ".webp" };
-            if (!allowed.Contains(extension))
+            if (!AllowedContentTypes.Contains(extension))
                 throw new DomainException("Invalid file type");
 
             var blobName = $"{userId:N}/{Guid.NewGuid():N}{extension}";

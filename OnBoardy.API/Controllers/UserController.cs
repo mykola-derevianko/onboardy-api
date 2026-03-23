@@ -73,6 +73,7 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpPost("me/profile-picture")]
+        [Consumes("multipart/form-data")]
         [RequestSizeLimit(MaxProfilePictureBytes)]
         [RequestFormLimits(MultipartBodyLengthLimit = MaxProfilePictureBytes)]
         public async Task<IActionResult> UploadProfilePicture(IFormFile file, CancellationToken cancellationToken)
