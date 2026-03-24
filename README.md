@@ -12,7 +12,9 @@ OnBoardy replaces scattered onboarding tools — documents, spreadsheets, emails
 * **Real-time progress visibility**
 * **Seamless team collaboration**
 * **Scalable onboarding workflows**
+* **Gamified experiences to boost engagement**
 
+By turning onboarding into a rewarding, interactive journey, new hires stay motivated and connected from day one.
 ---
 
 ## 💡 Why OnBoardy Exists
@@ -45,6 +47,7 @@ The **OnBoardy API** powers the platform by enabling:
 * **Multi-organization support with role-based access control**
 * **Invitation-based onboarding workflows**
 * **Media handling for user profiles and organization branding**
+* **Gamification mechanics — track points, badges, and progress to drive engagement**
 
 ---
 
@@ -58,6 +61,6 @@ This repository represents the **core backend foundation** of OnBoardy.
 
 ## 🌱 Vision
 
-To build a **reliable onboarding infrastructure** that helps companies scale effortlessly while delivering an outstanding employee experience from day one.
+To build a **reliable, gamified onboarding infrastructure** that helps companies scale effortlessly while delivering an outstanding employee experience from day one.
 
 ---
