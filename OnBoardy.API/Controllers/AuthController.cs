@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using OnBoardy.API.DTOs;
+using OnBoardy.API.Extensions;
+using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Controllers
@@ -10,7 +12,6 @@ namespace OnBoardy.API.Controllers
     {
         private readonly IAuthService _authService;
         private readonly ICookieService _cookieService;
-
 
         public AuthController(
             IAuthService authService,
@@ -25,7 +26,10 @@ namespace OnBoardy.API.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register(RegisterRequest request)
         {
-            await _authService.RegisterAsync(request);
+            var result = await _authService.RegisterAsync(request);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return Ok(new { message = "Registration successful. Please verify your email." });
         }
 
@@ -35,24 +39,37 @@ namespace OnBoardy.API.Controllers
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var result = await _authService.LoginAsync(request, ip);
 
-            _cookieService.SetAuthCookies(result, HttpContext);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            _cookieService.SetAuthCookies(result.Value, HttpContext);
             return Ok(new { message = "Logged in successfully." });
         }
 
         [HttpPost("refresh")]
         public async Task<IActionResult> Refresh()
         {
-            var refreshToken = Request.Cookies["refresh_token"] ?? throw new UnauthorizedAccessException();
+            var refreshToken = Request.Cookies["refresh_token"];
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return this.ToProblem(AuthErrors.InvalidRefreshToken);
+
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var result = await _authService.RefreshAsync(refreshToken, ip);
-            _cookieService.SetAuthCookies(result, HttpContext);
+
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            _cookieService.SetAuthCookies(result.Value, HttpContext);
             return Ok(new { message = "Refresh successful." });
         }
 
         [HttpPost("verify-email")]
         public async Task<IActionResult> VerifyEmail([FromQuery] string token)
         {
-            await _authService.VerifyEmailAsync(token);
+            var result = await _authService.VerifyEmailAsync(token);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return Ok(new { message = "Email successfully verified." });
         }
 
@@ -60,11 +77,13 @@ namespace OnBoardy.API.Controllers
         public async Task<IActionResult> Logout()
         {
             var refreshToken = Request.Cookies["refresh_token"];
+            var result = await _authService.LogoutAsync(refreshToken);
 
-            await _authService.LogoutAsync(refreshToken);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             _cookieService.ClearAuthCookies(HttpContext);
             return Ok(new { message = "Logged out successfully." });
         }
-
     }
 }

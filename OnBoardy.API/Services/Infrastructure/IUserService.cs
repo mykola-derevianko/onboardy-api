@@ -1,25 +1,20 @@
 ﻿using OnBoardy.API.DTOs;
 using OnBoardy.API.Models;
+using OnBoardy.API.Results;
 
 namespace OnBoardy.API.Services.Infrastructure
 {
     public interface IUserService
     {
-        Task<User> CreateAsync(RegisterRequest request);
-
-        Task<User?> GetByEmailAsync(string email);
-
-        Task<User?> GetByIdAsync(Guid id);
-
-        Task<User> UpdateAsync(Guid id, UpdateUserRequest request);
-
-        Task DeleteAsync(Guid id);
-
-        Task VerifyEmailAsync(Guid userId);
-
+        Task<Result<User>> CreateAsync(RegisterRequest request);
+        Task<Result<User>> GetByEmailAsync(string email);
+        Task<Result<User>> GetByIdAsync(Guid id);
+        Task<Result<User>> UpdateAsync(Guid id, UpdateUserRequest request);
+        Task<Result> DeleteAsync(Guid id);
+        Task<Result> VerifyEmailAsync(Guid userId);
         Task<bool> EmailExistsAsync(string email);
 
-        Task SaveProfilePictureAsync(
+        Task<Result> SaveProfilePictureAsync(
             Guid userId,
             Stream content,
             string fileName,

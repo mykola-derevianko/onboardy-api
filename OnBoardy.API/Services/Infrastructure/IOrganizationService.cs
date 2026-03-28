@@ -1,22 +1,25 @@
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
 using OnBoardy.API.Models;
+using OnBoardy.API.Results;
 
 namespace OnBoardy.API.Services.Infrastructure
 {
     public interface IOrganizationService
     {
-        Task<Organization> CreateAsync(CreateOrganizationRequest request, Guid userId);
+        Task<Result<Organization>> CreateAsync(CreateOrganizationRequest request, Guid userId);
 
-        Task<IReadOnlyCollection<Organization>> GetAllByUserIdAsync(Guid userId, IEnumerable<MembershipRole>? membershipRoles = null);
+        Task<Result<IReadOnlyCollection<Organization>>> GetAllByUserIdAsync(
+            Guid userId,
+            IEnumerable<MembershipRole>? membershipRoles = null);
 
-        Task<Organization?> GetByIdAsync(Guid id);
+        Task<Result<Organization>> GetByIdAsync(Guid id);
 
-        Task<Organization> UpdateAsync(Guid id, UpdateOrganizationRequest request);
+        Task<Result<Organization>> UpdateAsync(Guid id, UpdateOrganizationRequest request);
 
-        Task DeleteAsync(Guid id);
+        Task<Result> DeleteAsync(Guid id);
 
-        Task SaveMediaAsync(
+        Task<Result> SaveMediaAsync(
             Guid organizationId,
             Stream content,
             string fileName,

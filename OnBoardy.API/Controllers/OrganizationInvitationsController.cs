@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OnBoardy.API.Attributes;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
 using OnBoardy.API.Extensions;
@@ -27,12 +28,15 @@ namespace OnBoardy.API.Controllers
         public async Task<ActionResult<InvitationResponse>> Create(CreateInvitationRequest request, Guid orgId)
         {
             var invitedByUserId = User.GetUserId();
-            var invitation = await _invitationService.CreateAsync(orgId, invitedByUserId, request);
+            var result = await _invitationService.CreateAsync(orgId, invitedByUserId, request);
+
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
 
             return CreatedAtAction(
                 nameof(Accept),
-                new { token = invitation!.Token },
-                invitation!.ToResponseDTO());
+                new { token = result.Value.Token },
+                result.Value.ToResponseDTO());
         }
 
         [HttpGet]
@@ -42,8 +46,12 @@ namespace OnBoardy.API.Controllers
         )]
         public async Task<ActionResult<IReadOnlyCollection<InvitationResponse>>> GetByOrganization(Guid orgId)
         {
-            var invitations = await _invitationService.GetByOrganizationAsync(orgId);
-            return Ok(invitations.Select(x => x.ToResponseDTO()).ToList());
+            var result = await _invitationService.GetByOrganizationAsync(orgId);
+
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            return Ok(result.Value.Select(x => x.ToResponseDTO()).ToList());
         }
 
         [HttpDelete("{invitationId:guid}")]
@@ -53,7 +61,11 @@ namespace OnBoardy.API.Controllers
         )]
         public async Task<IActionResult> Delete(Guid orgId, Guid invitationId)
         {
-            await _invitationService.DeleteAsync(orgId, invitationId);
+            var result = await _invitationService.DeleteAsync(orgId, invitationId);
+
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return NoContent();
         }
 
@@ -63,9 +75,12 @@ namespace OnBoardy.API.Controllers
             var currentUserId = User.GetUserId();
             var result = await _invitationService.AcceptAsync(currentUserId, token);
 
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return Ok(new AcceptInvitationResponse
             {
-                Success = result
+                Success = true
             });
         }
     }

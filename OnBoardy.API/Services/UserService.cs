@@ -5,6 +5,7 @@ using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Extensions;
 using OnBoardy.API.Models;
+using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Services
@@ -25,10 +26,10 @@ namespace OnBoardy.API.Services
             _mapperService = mapperService;
         }
 
-        public async Task<User> CreateAsync(RegisterRequest registerRequest)
+        public async Task<Result<User>> CreateAsync(RegisterRequest registerRequest)
         {
             if (await EmailExistsAsync(registerRequest.Email))
-                throw new EmailAlreadyRegisteredException();
+                return Result.Failure<User>(UserErrors.EmailAlreadyRegistered);
 
             var user = new User
             {
@@ -45,31 +46,43 @@ namespace OnBoardy.API.Services
             _db.Users.Add(user);
             await _db.SaveChangesAsync();
 
-            return user;
+            return Result.Success(user);
         }
 
-        public async Task<User?> GetByEmailAsync(string email)
+        public async Task<Result<User>> GetByEmailAsync(string email)
         {
-            return await _db.Users
+            var user = await _db.Users
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Email == email);
+
+            return user is null
+                ? Result.Failure<User>(UserErrors.NotFound)
+                : Result.Success(user);
         }
 
-        public async Task<User?> GetByIdAsync(Guid id)
+        public async Task<Result<User>> GetByIdAsync(Guid id)
         {
-            return await _db.Users.FindAsync(id);
+            var user = await _db.Users.FindAsync(id);
+
+            return user is null
+                ? Result.Failure<User>(UserErrors.NotFound)
+                : Result.Success(user);
         }
 
-        public async Task<User> UpdateAsync(Guid id, UpdateUserRequest request)
+        public async Task<Result<User>> UpdateAsync(Guid id, UpdateUserRequest request)
         {
-            var user = await GetByIdAsync(id) ?? throw new UserNotFoundException();
+            var userResult = await GetByIdAsync(id);
+            if (userResult.IsFailure)
+                return Result.Failure<User>(userResult.Error);
 
             if (request.FirstName is null &&
                 request.LastName is null &&
                 request.IsActive is null)
             {
-                throw new DomainException("No fields were provided for update.");
+                return Result.Failure<User>(UserErrors.EmptyUpdatePayload);
             }
+
+            var user = userResult.Value;
 
             if (request.FirstName is not null)
                 user.FirstName = request.FirstName;
@@ -81,28 +94,39 @@ namespace OnBoardy.API.Services
                 user.IsActive = request.IsActive.Value;
 
             user.UpdatedAt = DateTime.UtcNow;
-
             await _db.SaveChangesAsync();
-            return user;
+
+            return Result.Success(user);
         }
 
-        public async Task DeleteAsync(Guid id)
+        public async Task<Result> DeleteAsync(Guid id)
         {
-            var user = await GetByIdAsync(id) ?? throw new UserNotFoundException();
+            var user = await GetByIdAsync(id);
+            if (user is null)
+                return Result.Failure(UserErrors.NotFound);
 
-            _db.Users.Remove(user);
+            _db.Users.Remove(user.Value);
             await _db.SaveChangesAsync();
+
+            return Result.Success();
         }
 
-        public async Task VerifyEmailAsync(Guid userId)
+        public async Task<Result> VerifyEmailAsync(Guid userId)
         {
-            var user = await GetByIdAsync(userId)
-                ?? throw new UserNotFoundException();
+            var userResult = await GetByIdAsync(userId);
+            if (userResult.IsFailure)
+                return Result.Failure(userResult.Error);
+
+            var user = userResult.Value;
+
+            if (user.EmailVerified)
+                return Result.Failure(UserErrors.EmailAlreadyVerified);
 
             user.EmailVerified = true;
             user.UpdatedAt = DateTime.UtcNow;
-
             await _db.SaveChangesAsync();
+
+            return Result.Success();
         }
 
         public async Task<bool> EmailExistsAsync(string email)
@@ -110,18 +134,19 @@ namespace OnBoardy.API.Services
             return await _db.Users.AnyAsync(x => x.Email == email);
         }
 
-        public async Task SaveProfilePictureAsync(
+        public async Task<Result> SaveProfilePictureAsync(
             Guid userId,
             Stream content,
             string fileName,
             string contentType,
             CancellationToken cancellationToken = default)
         {
-            var user = await _db.Users.FindAsync(userId) ?? throw new UserNotFoundException();
+            var user = await _db.Users.FindAsync(userId);
+            if (user is null)
+                return Result.Failure(UserErrors.NotFound);
 
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
-            var normalizedContentType = (contentType).ToLowerInvariant();
-
+            var normalizedContentType = contentType.ToLowerInvariant();
             var blobName = $"{userId:N}/{Guid.NewGuid():N}{extension}";
 
             await _mediaStorageService.UploadAndReplaceAsync(
@@ -134,8 +159,9 @@ namespace OnBoardy.API.Services
 
             user.ProfilePictureBlobName = blobName;
             user.UpdatedAt = DateTime.UtcNow;
-
             await _db.SaveChangesAsync(cancellationToken);
+
+            return Result.Success();
         }
 
         public async Task<UserResponse> GetMeAsync(Guid userId)

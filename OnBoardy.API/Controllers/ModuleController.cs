@@ -4,11 +4,9 @@ using OnBoardy.API.Attributes;
 using OnBoardy.API.Constants;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
-using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Extensions;
-using OnBoardy.API.Models;
+using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
-using System.Net;
 
 namespace OnBoardy.API.Controllers
 {
@@ -27,16 +25,16 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpPost]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin } })]
         public async Task<ActionResult<ModuleResponse>> Create(Guid orgId, CreateModuleRequest request)
         {
             var currentUserId = User.GetUserId();
 
-            var module = await _moduleService.CreateAsync(request, orgId, currentUserId);
-            var response = _mapperService.ToModuleResponse(module!);
+            var result = await _moduleService.CreateAsync(request, orgId, currentUserId);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            var response = _mapperService.ToModuleResponse(result.Value);
 
             return CreatedAtAction(
                 nameof(GetById),
@@ -45,41 +43,41 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpPatch("{moduleId:guid}")]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin } })]
         public async Task<ActionResult<ModuleResponse>> Update(Guid orgId, Guid moduleId, UpdateModuleRequest request)
         {
-            _ = orgId;
-
             var currentUserId = User.GetUserId();
-            var module = await _moduleService.UpdateAsync(moduleId, request, currentUserId);
+            var result = await _moduleService.UpdateAsync(moduleId, request, currentUserId);
 
-            if (module is null)
-                throw new DomainException("Module not found.", HttpStatusCode.NotFound);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
 
-            return Ok(_mapperService.ToModuleResponse(module));
-        }   
+            if (result.Value.OrganizationId != orgId)
+                return this.ToProblem(ModuleErrors.NotFound);
+
+            return Ok(_mapperService.ToModuleResponse(result.Value));
+        }
 
         [HttpDelete("{moduleId:guid}")]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin } })]
         public async Task<IActionResult> Delete(Guid orgId, Guid moduleId)
         {
-            _ = orgId;
+            var moduleResult = await _moduleService.GetByIdAsync(moduleId);
+            if (moduleResult.IsFailure)
+                return this.ToProblem(moduleResult.Error);
 
-            await _moduleService.DeleteAsync(moduleId);
+            if (moduleResult.Value.OrganizationId != orgId)
+                return this.ToProblem(ModuleErrors.NotFound);
+
+            var result = await _moduleService.DeleteAsync(moduleId);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return NoContent();
         }
 
         [HttpPost("{moduleId:guid}/banner")]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin } })]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(MediaValidation.MaxOrganizationBannerBytes)]
         [RequestFormLimits(MultipartBodyLengthLimit = MediaValidation.MaxOrganizationBannerBytes)]
@@ -89,33 +87,40 @@ namespace OnBoardy.API.Controllers
             [AllowedImageFile(MediaValidation.MaxOrganizationBannerBytes)] IFormFile file,
             CancellationToken cancellationToken)
         {
-            _ = orgId;
+            var moduleResult = await _moduleService.GetByIdAsync(moduleId);
+            if (moduleResult.IsFailure)
+                return this.ToProblem(moduleResult.Error);
+
+            if (moduleResult.Value.OrganizationId != orgId)
+                return this.ToProblem(ModuleErrors.NotFound);
 
             await using var stream = file.OpenReadStream();
 
-            await _moduleService.SaveBannerAsync(
+            var result = await _moduleService.SaveBannerAsync(
                 moduleId,
                 stream,
                 file.FileName,
                 file.ContentType,
                 cancellationToken);
 
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return Ok(new { message = "Module banner updated successfully." });
         }
 
         [HttpGet("{moduleId:guid}")]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin, MembershipRole.Employee } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner, MembershipRole.Admin, MembershipRole.Employee } })]
         public async Task<ActionResult<ModuleResponse>> GetById(Guid orgId, Guid moduleId)
         {
-            var module = await _moduleService.GetByIdAsync(moduleId);
+            var result = await _moduleService.GetByIdAsync(moduleId);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
 
-            if (module is null || module.OrganizationId != orgId)
-                throw new DomainException("Module not found.", HttpStatusCode.NotFound);
+            if (result.Value.OrganizationId != orgId)
+                return this.ToProblem(ModuleErrors.NotFound);
 
-            return Ok(_mapperService.ToModuleResponse(module));
+            return Ok(_mapperService.ToModuleResponse(result.Value));
         }
     }
 }

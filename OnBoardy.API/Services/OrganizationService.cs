@@ -3,8 +3,8 @@ using OnBoardy.API.Constants;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
-using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Models;
+using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Services
@@ -25,10 +25,11 @@ namespace OnBoardy.API.Services
             _mediaBlobPipelineService = mediaBlobPipelineService;
         }
 
-        public async Task<Organization> CreateAsync(CreateOrganizationRequest request, Guid userId)
+        public async Task<Result<Organization>> CreateAsync(CreateOrganizationRequest request, Guid userId)
         {
-            var user = await _db.Users.FindAsync(userId)
-                ?? throw new UserNotFoundException();
+            var userExists = await _db.Users.AnyAsync(u => u.Id == userId);
+            if (!userExists)
+                return Result.Failure<Organization>(UserErrors.NotFound);
 
             var now = DateTime.UtcNow;
 
@@ -43,19 +44,24 @@ namespace OnBoardy.API.Services
             _db.Organizations.Add(organization);
             await _db.SaveChangesAsync();
 
-            // Create owner membership
-            await _membershipService.CreateAsync(user.Id, organization.Id, MembershipRole.Owner);
+            var membershipResult = await _membershipService.CreateAsync(userId, organization.Id, MembershipRole.Owner);
+            if (membershipResult.IsFailure)
+                return Result.Failure<Organization>(membershipResult.Error);
 
-            return organization;
+            return Result.Success(organization);
         }
 
-        public async Task<IReadOnlyCollection<Organization>> GetAllByUserIdAsync(Guid userId, IEnumerable<MembershipRole>? membershipRoles = null)
+        public async Task<Result<IReadOnlyCollection<Organization>>> GetAllByUserIdAsync(
+            Guid userId,
+            IEnumerable<MembershipRole>? membershipRoles = null)
         {
-            var memberships = await _membershipService.GetAllByUserIdAsync(userId);
+            var membershipsResult = await _membershipService.GetAllByUserIdAsync(userId);
+            if (membershipsResult.IsFailure)
+                return Result.Failure<IReadOnlyCollection<Organization>>(membershipsResult.Error);
 
-            IEnumerable<Membership> filteredMemberships = memberships;
+            IEnumerable<Membership> filteredMemberships = membershipsResult.Value;
 
-            if (membershipRoles != null && membershipRoles.Any())
+            if (membershipRoles is not null && membershipRoles.Any())
                 filteredMemberships = filteredMemberships.Where(m => membershipRoles.Contains(m.Role));
 
             var organizations = filteredMemberships
@@ -64,20 +70,28 @@ namespace OnBoardy.API.Services
                 .OrderBy(o => o.Name)
                 .ToList();
 
-            return organizations;
+            return Result.Success<IReadOnlyCollection<Organization>>(organizations);
         }
 
-        public async Task<Organization?> GetByIdAsync(Guid id)
+        public async Task<Result<Organization>> GetByIdAsync(Guid id)
         {
-            return await _db.Organizations.FindAsync(id);
+            var organization = await _db.Organizations.FindAsync(id);
+
+            return organization is null
+                ? Result.Failure<Organization>(OrganizationErrors.NotFound)
+                : Result.Success(organization);
         }
 
-        public async Task<Organization> UpdateAsync(Guid id, UpdateOrganizationRequest request)
+        public async Task<Result<Organization>> UpdateAsync(Guid id, UpdateOrganizationRequest request)
         {
-            var organization = await GetByIdAsync(id) ?? throw new OrganizationNotFoundException();
+            var organizationResult = await GetByIdAsync(id);
+            if (organizationResult.IsFailure)
+                return Result.Failure<Organization>(organizationResult.Error);
 
             if (request.Name is null && request.Description is null)
-                throw new DomainException("No fields were provided for update.");
+                return Result.Failure<Organization>(OrganizationErrors.EmptyUpdatePayload);
+
+            var organization = organizationResult.Value;
 
             if (request.Name is not null)
                 organization.Name = request.Name;
@@ -88,18 +102,22 @@ namespace OnBoardy.API.Services
             organization.UpdatedAt = DateTime.UtcNow;
 
             await _db.SaveChangesAsync();
-            return organization;
+            return Result.Success(organization);
         }
 
-        public async Task DeleteAsync(Guid id)
+        public async Task<Result> DeleteAsync(Guid id)
         {
-            var organization = await GetByIdAsync(id) ?? throw new OrganizationNotFoundException();
+            var organizationResult = await GetByIdAsync(id);
+            if (organizationResult.IsFailure)
+                return Result.Failure(organizationResult.Error);
 
-            _db.Organizations.Remove(organization);
+            _db.Organizations.Remove(organizationResult.Value);
             await _db.SaveChangesAsync();
+
+            return Result.Success();
         }
 
-        public async Task SaveMediaAsync(
+        public async Task<Result> SaveMediaAsync(
             Guid organizationId,
             Stream content,
             string fileName,
@@ -107,8 +125,11 @@ namespace OnBoardy.API.Services
             OrganizationMediaType mediaType,
             CancellationToken cancellationToken = default)
         {
-            var organization = await _db.Organizations.FindAsync(organizationId)
-                ?? throw new OrganizationNotFoundException();
+            var organizationResult = await GetByIdAsync(organizationId);
+            if (organizationResult.IsFailure)
+                return Result.Failure(organizationResult.Error);
+
+            var organization = organizationResult.Value;
 
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
             var normalizedContentType = contentType.ToLowerInvariant();
@@ -135,6 +156,8 @@ namespace OnBoardy.API.Services
 
             organization.UpdatedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(cancellationToken);
+
+            return Result.Success();
         }
     }
 }
