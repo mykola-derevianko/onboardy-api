@@ -1,12 +1,14 @@
 ﻿using OnBoardy.API.DTOs;
+using OnBoardy.API.Results;
+
 namespace OnBoardy.API.Services.Infrastructure
 {
     public interface IAuthService
     {
-        Task RegisterAsync(RegisterRequest request);
-        Task<TokenDTO> LoginAsync(LoginRequest request, string ipAddress);
-        Task<TokenDTO> RefreshAsync(string refreshToken, string ipAddress);
-        Task VerifyEmailAsync(string token);
-        Task LogoutAsync(string? refreshToken);
+        Task<Result> RegisterAsync(RegisterRequest request);
+        Task<Result<TokenDTO>> LoginAsync(LoginRequest request, string ipAddress);
+        Task<Result<TokenDTO>> RefreshAsync(string refreshToken, string ipAddress);
+        Task<Result> VerifyEmailAsync(string token);
+        Task<Result> LogoutAsync(string? refreshToken);
     }
 }

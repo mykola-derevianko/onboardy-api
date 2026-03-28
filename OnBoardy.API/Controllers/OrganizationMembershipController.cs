@@ -2,10 +2,9 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
-using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Extensions;
+using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
-using System.Net;
 
 namespace OnBoardy.API.Controllers
 {
@@ -26,13 +25,17 @@ namespace OnBoardy.API.Controllers
         {
             var currentUserId = User.GetUserId();
 
-            var memberships = await _membershipService.GetAllByUserIdAsync(currentUserId);
-            var membership = memberships.FirstOrDefault(x => x.OrganizationId == orgId)
-                ?? throw new DomainException("Membership not found.", HttpStatusCode.NotFound);
+            var membershipsResult = await _membershipService.GetAllByUserIdAsync(currentUserId);
+            if (membershipsResult.IsFailure)
+                return this.ToProblem(membershipsResult.Error);
+
+            var membership = membershipsResult.Value.FirstOrDefault(x => x.OrganizationId == orgId);
+            if (membership is null)
+                return this.ToProblem(MembershipErrors.NotFound);
 
             return Ok(membership.ToResponseDTO());
         }
-            
+
         [HttpGet("all")]
         [TypeFilter(
             typeof(AuthorizeRoleFilter),
@@ -40,8 +43,11 @@ namespace OnBoardy.API.Controllers
         )]
         public async Task<ActionResult<IReadOnlyCollection<MembershipResponse>>> GetAllByOrganization(Guid orgId)
         {
-            var memberships = await _membershipService.GetAllByOrganizationIdAsync(orgId);
-            return Ok(memberships.Select(x => x.ToResponseDTO()).ToList());
+            var result = await _membershipService.GetAllByOrganizationIdAsync(orgId);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            return Ok(result.Value.Select(x => x.ToResponseDTO()).ToList());
         }
     }
 }

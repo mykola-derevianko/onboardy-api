@@ -1,8 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
-using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Exceptions.Identity;
+using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Services
@@ -27,47 +27,57 @@ namespace OnBoardy.API.Services
             _db = db;
         }
 
-        public async Task RegisterAsync(RegisterRequest request)
+        public async Task<Result> RegisterAsync(RegisterRequest request)
         {
-            var user = await _userService.CreateAsync(request);
-            await _emailVerification.SendVerificationEmailAsync(user);
+            var createResult = await _userService.CreateAsync(request);
+            if (createResult.IsFailure)
+                return Result.Failure(createResult.Error);
+
+            await _emailVerification.SendVerificationEmailAsync(createResult.Value);
+            return Result.Success();
         }
 
-        public async Task<TokenDTO> LoginAsync(LoginRequest request, string ip)
+        public async Task<Result<TokenDTO>> LoginAsync(LoginRequest request, string ip)
         {
-            var user = await _userService.GetByEmailAsync(request.Email)
-                ?? throw new UserNotFoundException();
+            var userResult = await _userService.GetByEmailAsync(request.Email);
+            if (userResult.IsFailure)
+                return Result.Failure<TokenDTO>(AuthErrors.InvalidCredentials);
+
+            var user = userResult.Value;
 
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-                throw new InvalidCredentialsException();
+                return Result.Failure<TokenDTO>(AuthErrors.InvalidCredentials);
 
             if (!user.EmailVerified)
-                throw new EmailNotVerifiedException();
+                return Result.Failure<TokenDTO>(AuthErrors.EmailNotVerified);
 
             if (!user.IsActive)
-                throw new AccountDisabledException();
+                return Result.Failure<TokenDTO>(AuthErrors.AccountDisabled);
 
             var access = _tokenService.CreateAccessToken(user);
             var refresh = await _tokenService.CreateRefreshTokenAsync(user.Id, ip);
 
-            return new TokenDTO { AccessToken = access, RefreshToken = refresh.Token };
+            return Result.Success(new TokenDTO
+            {
+                AccessToken = access,
+                RefreshToken = refresh.Token
+            });
         }
 
-        public async Task<TokenDTO> RefreshAsync(string refreshToken, string ip)
+        public async Task<Result<TokenDTO>> RefreshAsync(string refreshToken, string ip)
         {
             if (string.IsNullOrWhiteSpace(refreshToken))
-                throw new InvalidRefreshTokenException();
+                return Result.Failure<TokenDTO>(AuthErrors.InvalidRefreshToken);
 
             var token = await _db.RefreshTokens
                 .Include(x => x.User)
-                .FirstOrDefaultAsync(x => x.Token == refreshToken)
-                ?? throw new InvalidRefreshTokenException();
+                .FirstOrDefaultAsync(x => x.Token == refreshToken);
 
-            if (token.RevokedAt != null)
-                throw new InvalidRefreshTokenException();
+            if (token is null || token.RevokedAt is not null)
+                return Result.Failure<TokenDTO>(AuthErrors.InvalidRefreshToken);
 
             if (token.ExpiresAt < DateTime.UtcNow)
-                throw new TokenExpiredException();
+                return Result.Failure<TokenDTO>(AuthErrors.RefreshTokenExpired);
 
             token.RevokedAt = DateTime.UtcNow;
 
@@ -75,28 +85,47 @@ namespace OnBoardy.API.Services
             var newRefresh = await _tokenService.CreateRefreshTokenAsync(token.User!.Id, ip);
 
             await _db.SaveChangesAsync();
-            return new TokenDTO { AccessToken = access, RefreshToken = newRefresh.Token };
+
+            return Result.Success(new TokenDTO
+            {
+                AccessToken = access,
+                RefreshToken = newRefresh.Token
+            });
         }
 
-        public async Task VerifyEmailAsync(string token)
+        public async Task<Result> VerifyEmailAsync(string token)
         {
-            var record = await _emailVerification.ValidateTokenAsync(token);
-            await _emailVerification.MarkAsVerifiedAsync(record);
+            try
+            {
+                var record = await _emailVerification.ValidateTokenAsync(token);
+                await _emailVerification.MarkAsVerifiedAsync(record);
+                return Result.Success();
+            }
+            catch (InvalidEmailVerificationTokenException)
+            {
+                return Result.Failure(AuthErrors.InvalidEmailVerificationToken);
+            }
+            catch (TokenExpiredException)
+            {
+                return Result.Failure(AuthErrors.RefreshTokenExpired);
+            }
         }
 
-        public async Task LogoutAsync(string? refreshToken)
+        public async Task<Result> LogoutAsync(string? refreshToken)
         {
             if (string.IsNullOrWhiteSpace(refreshToken))
-                return;
+                return Result.Success();
 
             var token = await _db.RefreshTokens
                 .FirstOrDefaultAsync(x => x.Token == refreshToken);
 
-            if (token is null || token.RevokedAt != null)
-                return;
+            if (token is null || token.RevokedAt is not null)
+                return Result.Success();
 
             token.RevokedAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+
+            return Result.Success();
         }
     }
 }

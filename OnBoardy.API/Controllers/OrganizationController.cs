@@ -4,8 +4,8 @@ using OnBoardy.API.Attributes;
 using OnBoardy.API.Constants;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
-using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Extensions;
+using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Controllers
@@ -31,8 +31,11 @@ namespace OnBoardy.API.Controllers
         {
             var currentUserId = User.GetUserId();
 
-            var organization = await _organizationService.CreateAsync(request, currentUserId);
-            return CreatedAtAction(nameof(GetById), new { orgId = organization.Id }, _mapperService.ToOrganizationResponse(organization));
+            var result = await _organizationService.CreateAsync(request, currentUserId);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            return CreatedAtAction(nameof(GetById), new { orgId = result.Value.Id }, _mapperService.ToOrganizationResponse(result.Value));
         }
 
         [HttpGet]
@@ -41,9 +44,11 @@ namespace OnBoardy.API.Controllers
         {
             var currentUserId = User.GetUserId();
 
-            var organizations = await _organizationService.GetAllByUserIdAsync(currentUserId, membershipRoles);
+            var result = await _organizationService.GetAllByUserIdAsync(currentUserId, membershipRoles);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
 
-            return Ok(organizations.Select(_mapperService.ToOrganizationResponse).ToList());
+            return Ok(result.Value.Select(_mapperService.ToOrganizationResponse).ToList());
         }
 
         [HttpGet("{orgId:guid}")]
@@ -51,40 +56,41 @@ namespace OnBoardy.API.Controllers
         {
             var currentUserId = User.GetUserId();
 
-            var organizations = await _organizationService.GetAllByUserIdAsync(currentUserId);
-            var organization = organizations.FirstOrDefault(x => x.Id == orgId)
-                ?? throw new OrganizationNotFoundException();
+            var allResult = await _organizationService.GetAllByUserIdAsync(currentUserId);
+            if (allResult.IsFailure)
+                return this.ToProblem(allResult.Error);
+
+            var organization = allResult.Value.FirstOrDefault(x => x.Id == orgId);
+            if (organization is null)
+                return this.ToProblem(OrganizationErrors.NotFound);
 
             return Ok(_mapperService.ToOrganizationResponse(organization));
         }
 
         [HttpPatch("{orgId:guid}")]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner } })]
         public async Task<ActionResult<OrganizationResponse>> Update(Guid orgId, UpdateOrganizationRequest request)
         {
-            var organization = await _organizationService.UpdateAsync(orgId, request);
-            return Ok(organization.ToResponseDTO());
+            var result = await _organizationService.UpdateAsync(orgId, request);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            return Ok(result.Value.ToResponseDTO());
         }
 
         [HttpDelete("{orgId:guid}")]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner } })]
         public async Task<IActionResult> Delete(Guid orgId)
         {
-            await _organizationService.DeleteAsync(orgId);
+            var result = await _organizationService.DeleteAsync(orgId);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return NoContent();
         }
 
         [HttpPost("{orgId:guid}/logo")]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner } })]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(MediaValidation.MaxOrganizationLogoBytes)]
         [RequestFormLimits(MultipartBodyLengthLimit = MediaValidation.MaxOrganizationLogoBytes)]
@@ -95,7 +101,7 @@ namespace OnBoardy.API.Controllers
         {
             await using var stream = file.OpenReadStream();
 
-            await _organizationService.SaveMediaAsync(
+            var result = await _organizationService.SaveMediaAsync(
                 orgId,
                 stream,
                 file.FileName,
@@ -103,14 +109,14 @@ namespace OnBoardy.API.Controllers
                 OrganizationMediaType.Logo,
                 cancellationToken);
 
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return Ok(new { message = "Organization logo updated successfully." });
         }
 
         [HttpPost("{orgId:guid}/banner")]
-        [TypeFilter(
-            typeof(AuthorizeRoleFilter),
-            Arguments = new object[] { new[] { MembershipRole.Owner } }
-        )]
+        [TypeFilter(typeof(AuthorizeRoleFilter), Arguments = new object[] { new[] { MembershipRole.Owner } })]
         [Consumes("multipart/form-data")]
         [RequestSizeLimit(MediaValidation.MaxOrganizationBannerBytes)]
         [RequestFormLimits(MultipartBodyLengthLimit = MediaValidation.MaxOrganizationBannerBytes)]
@@ -121,13 +127,16 @@ namespace OnBoardy.API.Controllers
         {
             await using var stream = file.OpenReadStream();
 
-            await _organizationService.SaveMediaAsync(
+            var result = await _organizationService.SaveMediaAsync(
                 orgId,
                 stream,
                 file.FileName,
                 file.ContentType,
                 OrganizationMediaType.Banner,
                 cancellationToken);
+
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
 
             return Ok(new { message = "Organization banner updated successfully." });
         }

@@ -1,20 +1,21 @@
-using OnBoardy.API.Models;
 using OnBoardy.API.Enums;
+using OnBoardy.API.Models;
+using OnBoardy.API.Results;
 
 namespace OnBoardy.API.Services.Infrastructure
 {
     public interface IMembershipService
     {
-        Task<Membership> CreateAsync(Guid userId, Guid organizationId, MembershipRole role = MembershipRole.Owner);
+        Task<Result<Membership>> CreateAsync(Guid userId, Guid organizationId, MembershipRole role = MembershipRole.Employee);
 
-        Task<IReadOnlyCollection<Membership>> GetAllByOrganizationIdAsync(Guid organizationId);
+        Task<Result<IReadOnlyCollection<Membership>>> GetAllByOrganizationIdAsync(Guid organizationId);
 
-        Task<IReadOnlyCollection<Membership>> GetAllByUserIdAsync(Guid userId);
+        Task<Result<IReadOnlyCollection<Membership>>> GetAllByUserIdAsync(Guid userId);
 
-        Task<Membership?> GetByIdAsync(Guid id);
+        Task<Result<Membership>> GetByIdAsync(Guid id);
 
-        Task<Membership> UpdateRoleAsync(Guid membershipId, MembershipRole role);
+        Task<Result<Membership>> UpdateRoleAsync(Guid membershipId, MembershipRole role);
 
-        Task RemoveAsync(Guid membershipId);
+        Task<Result> RemoveAsync(Guid membershipId);
     }
 }

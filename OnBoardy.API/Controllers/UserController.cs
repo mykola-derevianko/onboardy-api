@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using OnBoardy.API.Attributes;
 using OnBoardy.API.Constants;
 using OnBoardy.API.DTOs;
-using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Extensions;
 using OnBoardy.API.Services.Infrastructure;
 
@@ -27,8 +26,11 @@ namespace OnBoardy.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Create(RegisterRequest request)
         {
-            var user = await _userService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetMe), _mapperService.ToUserResponse(user));
+            var result = await _userService.CreateAsync(request);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            return CreatedAtAction(nameof(GetMe), _mapperService.ToUserResponse(result.Value));
         }
 
         [HttpGet("me")]
@@ -36,10 +38,11 @@ namespace OnBoardy.API.Controllers
         {
             var currentUserId = User.GetUserId();
 
-            var user = await _userService.GetByIdAsync(currentUserId)
-                ?? throw new UserNotFoundException();
+            var result = await _userService.GetByIdAsync(currentUserId);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
 
-            return Ok(_mapperService.ToUserResponse(user));
+            return Ok(_mapperService.ToUserResponse(result.Value));
         }
 
         [HttpPatch("me")]
@@ -47,8 +50,11 @@ namespace OnBoardy.API.Controllers
         {
             var currentUserId = User.GetUserId();
 
-            var user = await _userService.UpdateAsync(currentUserId, request);
-            return Ok(_mapperService.ToUserResponse(user));
+            var result = await _userService.UpdateAsync(currentUserId, request);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
+            return Ok(_mapperService.ToUserResponse(result.Value));
         }
 
         [HttpDelete("me")]
@@ -56,7 +62,10 @@ namespace OnBoardy.API.Controllers
         {
             var currentUserId = User.GetUserId();
 
-            await _userService.DeleteAsync(currentUserId);
+            var result = await _userService.DeleteAsync(currentUserId);
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
+
             return NoContent();
         }
 
@@ -71,12 +80,15 @@ namespace OnBoardy.API.Controllers
             await using var stream = file.OpenReadStream();
 
             var userId = User.GetUserId();
-            await _userService.SaveProfilePictureAsync(
+            var result = await _userService.SaveProfilePictureAsync(
                 userId,
                 stream,
                 file.FileName,
                 file.ContentType,
                 cancellationToken);
+
+            if (result.IsFailure)
+                return this.ToProblem(result.Error);
 
             return Ok(new { message = "Profile picture updated successfully." });
         }
