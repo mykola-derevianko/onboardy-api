@@ -12,14 +12,17 @@ namespace OnBoardy.API.Services
     public class UserService : IUserService
     {
         private readonly AppDbContext _db;
-        private readonly IMediaStorageService _mediaBlobPipelineService;
+        private readonly IMediaStorageService _mediaStorageService;
+        private readonly IMapperService _mapperService;
 
         public UserService(
             AppDbContext db,
-            IMediaStorageService mediaBlobPipelineService)
+            IMediaStorageService mediaBlobPipelineService,
+            IMapperService mapperService)
         {
             _db = db;
-            _mediaBlobPipelineService = mediaBlobPipelineService;
+            _mediaStorageService = mediaBlobPipelineService;
+            _mapperService = mapperService;
         }
 
         public async Task<User> CreateAsync(RegisterRequest registerRequest)
@@ -121,7 +124,7 @@ namespace OnBoardy.API.Services
 
             var blobName = $"{userId:N}/{Guid.NewGuid():N}{extension}";
 
-            await _mediaBlobPipelineService.UploadAndReplaceAsync(
+            await _mediaStorageService.UploadAndReplaceAsync(
                 BlobContainers.ProfilePictures,
                 blobName,
                 content,
@@ -140,19 +143,7 @@ namespace OnBoardy.API.Services
             var user = await _db.Users.FindAsync(userId)
                 ?? throw new UserNotFoundException();
 
-            var response = user.ToResponseDTO();
-
-            if (!string.IsNullOrWhiteSpace(user.ProfilePictureBlobName))
-            {
-                response = response with
-                {
-                    ProfilePictureUrl = _mediaBlobPipelineService.GenerateReadSas(
-                        BlobContainers.ProfilePictures,
-                        user.ProfilePictureBlobName)
-                };
-            }
-
-            return response;
+            return _mapperService.ToUserResponse(user);
         }
     }
 }
