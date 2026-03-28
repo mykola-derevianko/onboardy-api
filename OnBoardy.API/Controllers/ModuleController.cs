@@ -18,12 +18,12 @@ namespace OnBoardy.API.Controllers
     public class ModuleController : ControllerBase
     {
         private readonly IModuleService _moduleService;
-        private readonly IBlobService _blobService;
+        private readonly IMapperService _mapperService;
 
-        public ModuleController(IModuleService moduleService, IBlobService blobService)
+        public ModuleController(IModuleService moduleService, IMapperService mapperService)
         {
             _moduleService = moduleService;
-            _blobService = blobService;
+            _mapperService = mapperService;
         }
 
         [HttpPost]
@@ -36,7 +36,7 @@ namespace OnBoardy.API.Controllers
             var currentUserId = User.GetUserId();
 
             var module = await _moduleService.CreateAsync(request, orgId, currentUserId);
-            var response = ToResponseDTO(module!);
+            var response = _mapperService.ToModuleResponse(module!);
 
             return CreatedAtAction(
                 nameof(GetById),
@@ -59,7 +59,7 @@ namespace OnBoardy.API.Controllers
             if (module is null)
                 throw new DomainException("Module not found.", HttpStatusCode.NotFound);
 
-            return Ok(ToResponseDTO(module));
+            return Ok(_mapperService.ToModuleResponse(module));
         }   
 
         [HttpDelete("{moduleId:guid}")]
@@ -115,27 +115,7 @@ namespace OnBoardy.API.Controllers
             if (module is null || module.OrganizationId != orgId)
                 throw new DomainException("Module not found.", HttpStatusCode.NotFound);
 
-            return Ok(ToResponseDTO(module));
-        }
-
-        private ModuleResponse ToResponseDTO(Module module)
-        {
-            var bannerBlobUrl = string.IsNullOrWhiteSpace(module.BannerBlobName)
-                ? null
-                : _blobService.GenerateReadSas(BlobContainers.OrganizationMedia, module.BannerBlobName);
-
-            return new ModuleResponse
-            {
-                Id = module.Id,
-                Name = module.Name,
-                Description = module.Description,
-                Status = module.Status,
-                OrganizationId = module.OrganizationId,
-                CreatedBy = module.CreatedBy,
-                CreatedAt = module.CreatedAt,
-                UpdatedAt = module.UpdatedAt,
-                BannerBlobUrl = bannerBlobUrl
-            };
+            return Ok(_mapperService.ToModuleResponse(module));
         }
     }
 }

@@ -32,6 +32,7 @@ builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IBlobService, BlobService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IModuleService, ModuleService>();
+builder.Services.AddScoped<IMapperService, MapperService>();
 
 // CORS
 const string CorsPolicyName = "CorsPolicy";

@@ -6,7 +6,6 @@ using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
 using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Extensions;
-using OnBoardy.API.Models;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Controllers
@@ -17,14 +16,14 @@ namespace OnBoardy.API.Controllers
     public class OrganizationController : ControllerBase
     {
         private readonly IOrganizationService _organizationService;
-        private readonly IBlobService _blobService;
+        private readonly IMapperService _mapperService;
 
         public OrganizationController(
             IOrganizationService organizationService,
-            IBlobService blobService)
+            IMapperService mapperService)
         {
             _organizationService = organizationService;
-            _blobService = blobService;
+            _mapperService = mapperService;
         }
 
         [HttpPost]
@@ -33,7 +32,7 @@ namespace OnBoardy.API.Controllers
             var currentUserId = User.GetUserId();
 
             var organization = await _organizationService.CreateAsync(request, currentUserId);
-            return CreatedAtAction(nameof(GetById), new { orgId = organization.Id }, organization.ToResponseDTO());
+            return CreatedAtAction(nameof(GetById), new { orgId = organization.Id }, _mapperService.ToOrganizationResponse(organization));
         }
 
         [HttpGet]
@@ -44,7 +43,7 @@ namespace OnBoardy.API.Controllers
 
             var organizations = await _organizationService.GetAllByUserIdAsync(currentUserId, membershipRoles);
 
-            return Ok(organizations.Select(ToResponseWithMediaUrls).ToList());
+            return Ok(organizations.Select(_mapperService.ToOrganizationResponse).ToList());
         }
 
         [HttpGet("{orgId:guid}")]
@@ -56,7 +55,7 @@ namespace OnBoardy.API.Controllers
             var organization = organizations.FirstOrDefault(x => x.Id == orgId)
                 ?? throw new OrganizationNotFoundException();
 
-            return Ok(ToResponseWithMediaUrls(organization));
+            return Ok(_mapperService.ToOrganizationResponse(organization));
         }
 
         [HttpPatch("{orgId:guid}")]
@@ -131,34 +130,6 @@ namespace OnBoardy.API.Controllers
                 cancellationToken);
 
             return Ok(new { message = "Organization banner updated successfully." });
-        }
-
-
-        //TODO: Refactor to avoid code duplication with UserController's media URL generation.
-        // Move maps to a separate service and inject it where needed?
-        private OrganizationResponse ToResponseWithMediaUrls(Organization organization)
-        {
-            var response = organization.ToResponseDTO();
-
-            if (!string.IsNullOrWhiteSpace(organization.LogoBlobName))
-            {
-                var logoUrl = _blobService.GenerateReadSas(
-                    BlobContainers.OrganizationMedia,
-                    organization.LogoBlobName);
-
-                response = response with { LogoUrl = logoUrl };
-            }
-
-            if (!string.IsNullOrWhiteSpace(organization.BannerBlobName))
-            {
-                var bannerUrl = _blobService.GenerateReadSas(
-                    BlobContainers.OrganizationMedia,
-                    organization.BannerBlobName);
-
-                response = response with { BannerUrl = bannerUrl };
-            }
-
-            return response;
         }
     }
 }

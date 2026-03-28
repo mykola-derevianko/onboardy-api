@@ -5,7 +5,6 @@ using OnBoardy.API.Constants;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Extensions;
-using OnBoardy.API.Models;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Controllers
@@ -16,12 +15,12 @@ namespace OnBoardy.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
-        private readonly IMediaStorageService _mediaStorageService;
+        private readonly IMapperService _mapperService;
 
-        public UserController(IUserService userService, IMediaStorageService mediaStorageService)
+        public UserController(IUserService userService, IMapperService mapperService)
         {
             _userService = userService;
-            _mediaStorageService = mediaStorageService;
+            _mapperService = mapperService;
         }
 
         [HttpPost]
@@ -29,7 +28,7 @@ namespace OnBoardy.API.Controllers
         public async Task<IActionResult> Create(RegisterRequest request)
         {
             var user = await _userService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetMe), ToResponseWithMediaUrl(user));
+            return CreatedAtAction(nameof(GetMe), _mapperService.ToUserResponse(user));
         }
 
         [HttpGet("me")]
@@ -40,7 +39,7 @@ namespace OnBoardy.API.Controllers
             var user = await _userService.GetByIdAsync(currentUserId)
                 ?? throw new UserNotFoundException();
 
-            return Ok(ToResponseWithMediaUrl(user));
+            return Ok(_mapperService.ToUserResponse(user));
         }
 
         [HttpPatch("me")]
@@ -49,7 +48,7 @@ namespace OnBoardy.API.Controllers
             var currentUserId = User.GetUserId();
 
             var user = await _userService.UpdateAsync(currentUserId, request);
-            return Ok(ToResponseWithMediaUrl(user));
+            return Ok(_mapperService.ToUserResponse(user));
         }
 
         [HttpDelete("me")]
@@ -66,8 +65,7 @@ namespace OnBoardy.API.Controllers
         [RequestSizeLimit(MediaValidation.MaxProfilePictureBytes)]
         [RequestFormLimits(MultipartBodyLengthLimit = MediaValidation.MaxProfilePictureBytes)]
         public async Task<IActionResult> UploadProfilePicture(
-            [AllowedImageFile(MediaValidation.MaxProfilePictureBytes)]
-            IFormFile file,
+            [AllowedImageFile(MediaValidation.MaxProfilePictureBytes)] IFormFile file,
             CancellationToken cancellationToken)
         {
             await using var stream = file.OpenReadStream();
@@ -81,25 +79,6 @@ namespace OnBoardy.API.Controllers
                 cancellationToken);
 
             return Ok(new { message = "Profile picture updated successfully." });
-        }
-
-
-        //TODO: Refactor to avoid code duplication with OrganizaitonController's media URL generation.
-        // Move maps to a separate service and inject it where needed?
-        private UserResponse ToResponseWithMediaUrl(User user)
-        {
-            var response = user.ToResponseDTO();
-
-            if (!string.IsNullOrWhiteSpace(user.ProfilePictureBlobName))
-            {
-                var readUrl = _mediaStorageService.GenerateReadSas(
-                    BlobContainers.ProfilePictures,
-                    user.ProfilePictureBlobName);
-
-                response = response with { ProfilePictureUrl = readUrl };
-            }
-
-            return response;
         }
     }
 }
