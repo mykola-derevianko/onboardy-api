@@ -14,6 +14,7 @@ namespace OnBoardy.API.Data
         public required DbSet<Invitation> Invitations { get; set; }
         public required DbSet<RefreshToken> RefreshTokens { get; set; }
         public required DbSet<EmailVerification> EmailVerification { get; set; }
+        public required DbSet<Module> Modules { get; set; }
 
         public AppDbContext(DbContextOptions<AppDbContext> options, IConfiguration configuration)
             : base(options)
