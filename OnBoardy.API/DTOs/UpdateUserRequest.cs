@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OnBoardy.API.DTOs
 {
-    public record UpdateUserRequestDTO
+    public record UpdateUserRequest
     {
         [MinLength(2)]
         public string? FirstName { get; init; }

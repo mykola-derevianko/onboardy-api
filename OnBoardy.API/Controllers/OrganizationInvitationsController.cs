@@ -24,7 +24,7 @@ namespace OnBoardy.API.Controllers
             typeof(AuthorizeRoleFilter),
             Arguments = new object[] { new[] { MembershipRole.Owner } }
         )]
-        public async Task<ActionResult<InvitationResponseDTO>> Create(CreateInvitationRequestDTO request, Guid orgId)
+        public async Task<ActionResult<InvitationResponse>> Create(CreateInvitationRequest request, Guid orgId)
         {
             var invitedByUserId = User.GetUserId();
             var invitation = await _invitationService.CreateAsync(orgId, invitedByUserId, request);
@@ -40,7 +40,7 @@ namespace OnBoardy.API.Controllers
             typeof(AuthorizeRoleFilter),
             Arguments = new object[] { new[] { MembershipRole.Owner } }
         )]
-        public async Task<ActionResult<IReadOnlyCollection<InvitationResponseDTO>>> GetByOrganization(Guid orgId)
+        public async Task<ActionResult<IReadOnlyCollection<InvitationResponse>>> GetByOrganization(Guid orgId)
         {
             var invitations = await _invitationService.GetByOrganizationAsync(orgId);
             return Ok(invitations.Select(x => x.ToResponseDTO()).ToList());
@@ -58,12 +58,12 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpPost("/api/invitations/{token}/accept")]
-        public async Task<ActionResult<AcceptInvitationResponseDTO>> Accept(string token)
+        public async Task<ActionResult<AcceptInvitationResponse>> Accept(string token)
         {
             var currentUserId = User.GetUserId();
             var result = await _invitationService.AcceptAsync(currentUserId, token);
 
-            return Ok(new AcceptInvitationResponseDTO
+            return Ok(new AcceptInvitationResponse
             {
                 Success = result
             });

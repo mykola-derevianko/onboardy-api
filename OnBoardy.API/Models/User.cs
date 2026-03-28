@@ -12,6 +12,8 @@
 
         public required string LastName { get; set; }
 
+        public string? ProfilePictureBlobName { get; set; }
+
         public bool IsActive { get; set; } = true;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

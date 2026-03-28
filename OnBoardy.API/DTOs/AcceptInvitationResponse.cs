@@ -1,6 +1,6 @@
 namespace OnBoardy.API.DTOs
 {
-    public record AcceptInvitationResponseDTO
+    public record AcceptInvitationResponse
     {
         public required bool Success { get; init; }
     }

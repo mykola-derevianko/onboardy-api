@@ -7,9 +7,9 @@ namespace OnBoardy.API.Extensions
     {
         extension(Organization organization)
         {
-            public OrganizationResponseDTO ToResponseDTO()
+            public OrganizationResponse ToResponseDTO()
             {
-                return new OrganizationResponseDTO
+                return new OrganizationResponse
                 {
                     Id = organization.Id,
                     Name = organization.Name,

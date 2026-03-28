@@ -7,9 +7,9 @@ namespace OnBoardy.API.Extensions
     {
         extension(Membership membership)
         {
-            public MembershipResponseDTO ToResponseDTO()
+            public MembershipResponse ToResponseDTO()
             {
-                return new MembershipResponseDTO
+                return new MembershipResponse
                 {
                     Id = membership.Id,
                     UserId = membership.UserId,

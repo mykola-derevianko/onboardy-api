@@ -4,7 +4,6 @@ using OnBoardy.API.Models;
 
 namespace OnBoardy.API.Data.Configurations
 {
-
     public class OrganizationConfiguration : IEntityTypeConfiguration<Organization>
     {
         public void Configure(EntityTypeBuilder<Organization> builder)
@@ -17,6 +16,12 @@ namespace OnBoardy.API.Data.Configurations
 
             builder.Property(x => x.Description)
                 .HasMaxLength(1000);
+
+            builder.Property(x => x.LogoBlobName)
+                .HasMaxLength(1024);
+
+            builder.Property(x => x.BannerBlobName)
+                .HasMaxLength(1024);
 
             builder.Property(x => x.CreatedAt)
                 .HasDefaultValueSql("now() at time zone 'utc'")

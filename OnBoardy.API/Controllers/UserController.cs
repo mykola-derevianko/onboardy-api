@@ -1,11 +1,11 @@
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OnBoardy.API.Attributes;
+using OnBoardy.API.Constants;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
-using OnBoardy.API.Exceptions.Identity;
 using OnBoardy.API.Extensions;
+using OnBoardy.API.Models;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Controllers
@@ -16,78 +16,90 @@ namespace OnBoardy.API.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IMediaStorageService _mediaStorageService;
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, IMediaStorageService mediaStorageService)
         {
             _userService = userService;
+            _mediaStorageService = mediaStorageService;
         }
 
         [HttpPost]
         [AllowAnonymous]
-        public async Task<IActionResult> Create(RegisterRequestDTO request)
+        public async Task<IActionResult> Create(RegisterRequest request)
         {
             var user = await _userService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetById), new { id = user.Id }, user.ToResponseDTO());
-        }
-
-        [HttpGet("{id:guid}")]
-        public async Task<ActionResult<UserResponseDTO>> GetById(Guid id)
-        {
-            EnsureSelfAccess(id);
-
-            var user = await _userService.GetByIdAsync(id)
-                ?? throw new UserNotFoundException();
-
-            return Ok(user.ToResponseDTO());
-        }
-
-        [HttpPatch("{id:guid}")]
-        public async Task<ActionResult<UserResponseDTO>> Update(Guid id, UpdateUserRequestDTO request)
-        {
-            EnsureSelfAccess(id);
-
-            var user = await _userService.UpdateAsync(id, request);
-            return Ok(user.ToResponseDTO());
-        }
-
-        [HttpDelete("{id:guid}")]
-        public async Task<IActionResult> Delete(Guid id)
-        {
-            EnsureSelfAccess(id);
-
-            await _userService.DeleteAsync(id);
-            return NoContent();
+            return CreatedAtAction(nameof(GetMe), ToResponseWithMediaUrl(user));
         }
 
         [HttpGet("me")]
-        public async Task<ActionResult<UserResponseDTO>> GetMe()
+        public async Task<ActionResult<UserResponse>> GetMe()
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = User.GetUserId();
 
             var user = await _userService.GetByIdAsync(currentUserId)
                 ?? throw new UserNotFoundException();
 
-            return Ok(user.ToResponseDTO());
+            return Ok(ToResponseWithMediaUrl(user));
         }
 
-        private Guid GetCurrentUserId()
+        [HttpPatch("me")]
+        public async Task<ActionResult<UserResponse>> UpdateMe(UpdateUserRequest request)
         {
-            var subject =
-                User.FindFirstValue(JwtRegisteredClaimNames.Sub) ??
-                User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var currentUserId = User.GetUserId();
 
-            if (!Guid.TryParse(subject, out var userId))
-                throw new InvalidUserContextException();
-
-            return userId;
+            var user = await _userService.UpdateAsync(currentUserId, request);
+            return Ok(ToResponseWithMediaUrl(user));
         }
 
-        private void EnsureSelfAccess(Guid targetUserId)
+        [HttpDelete("me")]
+        public async Task<IActionResult> DeleteMe()
         {
-            var currentUserId = GetCurrentUserId();
+            var currentUserId = User.GetUserId();
 
-            if (currentUserId != targetUserId)
-                throw new InsufficientPermissionsException();
+            await _userService.DeleteAsync(currentUserId);
+            return NoContent();
+        }
+
+        [HttpPost("me/profile-picture")]
+        [Consumes("multipart/form-data")]
+        [RequestSizeLimit(MediaValidation.MaxProfilePictureBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = MediaValidation.MaxProfilePictureBytes)]
+        public async Task<IActionResult> UploadProfilePicture(
+            [AllowedImageFile(MediaValidation.MaxProfilePictureBytes)]
+            IFormFile file,
+            CancellationToken cancellationToken)
+        {
+            await using var stream = file.OpenReadStream();
+
+            var userId = User.GetUserId();
+            await _userService.SaveProfilePictureAsync(
+                userId,
+                stream,
+                file.FileName,
+                file.ContentType,
+                cancellationToken);
+
+            return Ok(new { message = "Profile picture updated successfully." });
+        }
+
+
+        //TODO: Refactor to avoid code duplication with OrganizaitonController's media URL generation.
+        // Move maps to a separate service and inject it where needed?
+        private UserResponse ToResponseWithMediaUrl(User user)
+        {
+            var response = user.ToResponseDTO();
+
+            if (!string.IsNullOrWhiteSpace(user.ProfilePictureBlobName))
+            {
+                var readUrl = _mediaStorageService.GenerateReadSas(
+                    BlobContainers.ProfilePictures,
+                    user.ProfilePictureBlobName);
+
+                response = response with { ProfilePictureUrl = readUrl };
+            }
+
+            return response;
         }
     }
 }

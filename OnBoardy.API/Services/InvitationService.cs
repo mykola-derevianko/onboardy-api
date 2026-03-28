@@ -30,7 +30,7 @@ namespace OnBoardy.API.Services
             _userService = userService;
         }
 
-        public async Task<Invitation?> CreateAsync(Guid orgId, Guid invitedByUserId, CreateInvitationRequestDTO request)
+        public async Task<Invitation?> CreateAsync(Guid orgId, Guid invitedByUserId, CreateInvitationRequest request)
         {
             var organization = await _organizationService.GetByIdAsync(orgId)
                 ?? throw new OrganizationNotFoundException();

@@ -2,7 +2,7 @@ using OnBoardy.API.Enums;
 
 namespace OnBoardy.API.DTOs
 {
-    public record InvitationResponseDTO
+    public record InvitationResponse
     {
         public required Guid Id { get; init; }
         public string? Email { get; init; }

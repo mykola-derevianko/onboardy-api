@@ -1,7 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using OnBoardy.API.Constants;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
+using OnBoardy.API.Extensions;
 using OnBoardy.API.Models;
 using OnBoardy.API.Services.Infrastructure;
 
@@ -10,13 +12,17 @@ namespace OnBoardy.API.Services
     public class UserService : IUserService
     {
         private readonly AppDbContext _db;
+        private readonly IMediaStorageService _mediaBlobPipelineService;
 
-        public UserService(AppDbContext db)
+        public UserService(
+            AppDbContext db,
+            IMediaStorageService mediaBlobPipelineService)
         {
             _db = db;
+            _mediaBlobPipelineService = mediaBlobPipelineService;
         }
 
-        public async Task<User> CreateAsync(RegisterRequestDTO registerRequest)
+        public async Task<User> CreateAsync(RegisterRequest registerRequest)
         {
             if (await EmailExistsAsync(registerRequest.Email))
                 throw new EmailAlreadyRegisteredException();
@@ -51,7 +57,7 @@ namespace OnBoardy.API.Services
             return await _db.Users.FindAsync(id);
         }
 
-        public async Task<User> UpdateAsync(Guid id, UpdateUserRequestDTO request)
+        public async Task<User> UpdateAsync(Guid id, UpdateUserRequest request)
         {
             var user = await GetByIdAsync(id) ?? throw new UserNotFoundException();
 
@@ -99,6 +105,54 @@ namespace OnBoardy.API.Services
         public async Task<bool> EmailExistsAsync(string email)
         {
             return await _db.Users.AnyAsync(x => x.Email == email);
+        }
+
+        public async Task SaveProfilePictureAsync(
+            Guid userId,
+            Stream content,
+            string fileName,
+            string contentType,
+            CancellationToken cancellationToken = default)
+        {
+            var user = await _db.Users.FindAsync(userId) ?? throw new UserNotFoundException();
+
+            var extension = Path.GetExtension(fileName).ToLowerInvariant();
+            var normalizedContentType = (contentType).ToLowerInvariant();
+
+            var blobName = $"{userId:N}/{Guid.NewGuid():N}{extension}";
+
+            await _mediaBlobPipelineService.UploadAndReplaceAsync(
+                BlobContainers.ProfilePictures,
+                blobName,
+                content,
+                normalizedContentType,
+                user.ProfilePictureBlobName,
+                cancellationToken);
+
+            user.ProfilePictureBlobName = blobName;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<UserResponse> GetMeAsync(Guid userId)
+        {
+            var user = await _db.Users.FindAsync(userId)
+                ?? throw new UserNotFoundException();
+
+            var response = user.ToResponseDTO();
+
+            if (!string.IsNullOrWhiteSpace(user.ProfilePictureBlobName))
+            {
+                response = response with
+                {
+                    ProfilePictureUrl = _mediaBlobPipelineService.GenerateReadSas(
+                        BlobContainers.ProfilePictures,
+                        user.ProfilePictureBlobName)
+                };
+            }
+
+            return response;
         }
     }
 }

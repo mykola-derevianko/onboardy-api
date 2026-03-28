@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.DTOs;
-using OnBoardy.API.Exceptions.Identity;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Controllers
@@ -25,14 +23,14 @@ namespace OnBoardy.API.Controllers
         }
 
         [HttpPost("register")]
-        public async Task<IActionResult> Register(RegisterRequestDTO request)
+        public async Task<IActionResult> Register(RegisterRequest request)
         {
             await _authService.RegisterAsync(request);
             return Ok(new { message = "Registration successful. Please verify your email." });
         }
 
         [HttpPost("login")]
-        public async Task<IActionResult> Login(LoginRequestDTO request)
+        public async Task<IActionResult> Login(LoginRequest request)
         {
             var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
             var result = await _authService.LoginAsync(request, ip);

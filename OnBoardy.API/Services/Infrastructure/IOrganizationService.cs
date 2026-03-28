@@ -6,14 +6,22 @@ namespace OnBoardy.API.Services.Infrastructure
 {
     public interface IOrganizationService
     {
-        Task<Organization> CreateAsync(CreateOrganizationRequestDTO request, Guid userId);
+        Task<Organization> CreateAsync(CreateOrganizationRequest request, Guid userId);
 
-        Task<IReadOnlyCollection<Organization>> GetAllByUserIdAsync(Guid userId, MembershipRole? membershipRole = null);
+        Task<IReadOnlyCollection<Organization>> GetAllByUserIdAsync(Guid userId, IEnumerable<MembershipRole>? membershipRoles = null);
 
         Task<Organization?> GetByIdAsync(Guid id);
 
-        Task<Organization> UpdateAsync(Guid id, UpdateOrganizationRequestDTO request);
+        Task<Organization> UpdateAsync(Guid id, UpdateOrganizationRequest request);
 
         Task DeleteAsync(Guid id);
+
+        Task SaveMediaAsync(
+            Guid organizationId,
+            Stream content,
+            string fileName,
+            string contentType,
+            OrganizationMediaType mediaType,
+            CancellationToken cancellationToken = default);
     }
 }

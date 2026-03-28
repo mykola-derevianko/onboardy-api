@@ -2,12 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace OnBoardy.API.DTOs
 {
-    public record CreateOrganizationRequestDTO
+    public record UpdateOrganizationRequest
     {
-        [Required]
         [MinLength(2)]
         [MaxLength(255)]
-        public required string Name { get; init; }
+        public string? Name { get; init; }
 
         [MaxLength(1000)]
         public string? Description { get; init; }
