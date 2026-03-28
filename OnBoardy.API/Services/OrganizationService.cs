@@ -11,21 +11,18 @@ namespace OnBoardy.API.Services
 {
     public class OrganizationService : IOrganizationService
     {
-        private static readonly HashSet<string> AllowedExtensions = [".jpg", ".jpeg", ".png", ".webp"];
-        private static readonly HashSet<string> AllowedContentTypes = ["image/jpg", "image/jpeg", "image/png", "image/webp"];
-
         private readonly AppDbContext _db;
         private readonly IMembershipService _membershipService;
-        private readonly IBlobService _blobService;
+        private readonly IMediaStorageService _mediaBlobPipelineService;
 
         public OrganizationService(
             AppDbContext db,
             IMembershipService membershipService,
-            IBlobService blobService)
+            IMediaStorageService mediaBlobPipelineService)
         {
             _db = db;
             _membershipService = membershipService;
-            _blobService = blobService;
+            _mediaBlobPipelineService = mediaBlobPipelineService;
         }
 
         public async Task<Organization> CreateAsync(CreateOrganizationRequest request, Guid userId)
@@ -102,67 +99,36 @@ namespace OnBoardy.API.Services
             await _db.SaveChangesAsync();
         }
 
-        public Task SaveLogoAsync(
+        public async Task SaveMediaAsync(
             Guid organizationId,
             Stream content,
             string fileName,
             string contentType,
+            OrganizationMediaType mediaType,
             CancellationToken cancellationToken = default)
-        {
-            return SaveMediaAsync(organizationId, content, fileName, contentType, isLogo: true, cancellationToken);
-        }
-
-        public Task SaveBannerAsync(
-            Guid organizationId,
-            Stream content,
-            string fileName,
-            string contentType,
-            CancellationToken cancellationToken = default)
-        {
-            return SaveMediaAsync(organizationId, content, fileName, contentType, isLogo: false, cancellationToken);
-        }
-
-        private async Task SaveMediaAsync(
-            Guid organizationId,
-            Stream content,
-            string fileName,
-            string contentType,
-            bool isLogo,
-            CancellationToken cancellationToken)
         {
             var organization = await _db.Organizations.FindAsync(organizationId)
                 ?? throw new OrganizationNotFoundException();
 
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
-            if (!AllowedExtensions.Contains(extension))
-                throw new DomainException("Invalid file type.");
+            var normalizedContentType = contentType.ToLowerInvariant();
 
-            var normalizedContentType = (contentType ?? string.Empty).ToLowerInvariant();
-            if (!AllowedContentTypes.Contains(normalizedContentType))
-                throw new DomainException("Invalid content type.");
+            var mediaPath = mediaType == OrganizationMediaType.Logo ? "logo" : "banner";
+            var blobName = $"organizations/{organizationId:N}/{mediaPath}/{Guid.NewGuid():N}{extension}";
 
-            var mediaType = isLogo ? "logo" : "banner";
-            var blobName = $"organizations/{organizationId:N}/{mediaType}/{Guid.NewGuid():N}{extension}";
+            var oldBlobName = mediaType == OrganizationMediaType.Logo
+                ? organization.LogoBlobName
+                : organization.BannerBlobName;
 
-            await _blobService.UploadAsync(
+            await _mediaBlobPipelineService.UploadAndReplaceAsync(
                 BlobContainers.OrganizationMedia,
                 blobName,
                 content,
                 normalizedContentType,
+                oldBlobName,
                 cancellationToken);
 
-            var oldBlobName = isLogo
-                ? organization.LogoBlobName
-                : organization.BannerBlobName;
-
-            if (!string.IsNullOrWhiteSpace(oldBlobName))
-            {
-                await _blobService.DeleteAsync(
-                    BlobContainers.OrganizationMedia,
-                    oldBlobName);
-            }
-
-            if (isLogo)
+            if (mediaType == OrganizationMediaType.Logo)
                 organization.LogoBlobName = blobName;
             else
                 organization.BannerBlobName = blobName;

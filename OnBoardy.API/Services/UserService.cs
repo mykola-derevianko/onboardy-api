@@ -3,6 +3,7 @@ using OnBoardy.API.Constants;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
+using OnBoardy.API.Extensions;
 using OnBoardy.API.Models;
 using OnBoardy.API.Services.Infrastructure;
 
@@ -10,18 +11,15 @@ namespace OnBoardy.API.Services
 {
     public class UserService : IUserService
     {
-
-        private static readonly HashSet<string> AllowedContentTypes = [ ".jpg", ".jpeg", ".png", ".webp" ];
-
-
         private readonly AppDbContext _db;
-        private readonly IBlobService _blobService;
+        private readonly IMediaStorageService _mediaBlobPipelineService;
 
-
-        public UserService(AppDbContext db, IBlobService blobService)
+        public UserService(
+            AppDbContext db,
+            IMediaStorageService mediaBlobPipelineService)
         {
             _db = db;
-            _blobService = blobService;
+            _mediaBlobPipelineService = mediaBlobPipelineService;
         }
 
         public async Task<User> CreateAsync(RegisterRequest registerRequest)
@@ -119,29 +117,42 @@ namespace OnBoardy.API.Services
             var user = await _db.Users.FindAsync(userId) ?? throw new UserNotFoundException();
 
             var extension = Path.GetExtension(fileName).ToLowerInvariant();
-            if (!AllowedContentTypes.Contains(extension))
-                throw new DomainException("Invalid file type");
+            var normalizedContentType = (contentType).ToLowerInvariant();
 
             var blobName = $"{userId:N}/{Guid.NewGuid():N}{extension}";
 
-            await _blobService.UploadAsync(
+            await _mediaBlobPipelineService.UploadAndReplaceAsync(
                 BlobContainers.ProfilePictures,
                 blobName,
                 content,
-                contentType,
+                normalizedContentType,
+                user.ProfilePictureBlobName,
                 cancellationToken);
-
-            if (!string.IsNullOrEmpty(user.ProfilePictureBlobName))
-            {
-                await _blobService.DeleteAsync(
-                    BlobContainers.ProfilePictures,
-                    user.ProfilePictureBlobName);
-            }
 
             user.ProfilePictureBlobName = blobName;
             user.UpdatedAt = DateTime.UtcNow;
 
-            await _db.SaveChangesAsync();
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<UserResponse> GetMeAsync(Guid userId)
+        {
+            var user = await _db.Users.FindAsync(userId)
+                ?? throw new UserNotFoundException();
+
+            var response = user.ToResponseDTO();
+
+            if (!string.IsNullOrWhiteSpace(user.ProfilePictureBlobName))
+            {
+                response = response with
+                {
+                    ProfilePictureUrl = _mediaBlobPipelineService.GenerateReadSas(
+                        BlobContainers.ProfilePictures,
+                        user.ProfilePictureBlobName)
+                };
+            }
+
+            return response;
         }
     }
 }

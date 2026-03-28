@@ -16,18 +16,12 @@ namespace OnBoardy.API.Services.Infrastructure
 
         Task DeleteAsync(Guid id);
 
-        Task SaveLogoAsync(
+        Task SaveMediaAsync(
             Guid organizationId,
             Stream content,
             string fileName,
             string contentType,
-            CancellationToken cancellationToken = default);
-
-        Task SaveBannerAsync(
-            Guid organizationId,
-            Stream content,
-            string fileName,
-            string contentType,
+            OrganizationMediaType mediaType,
             CancellationToken cancellationToken = default);
     }
 }

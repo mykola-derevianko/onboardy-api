@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OnBoardy.API.Attributes;
 using OnBoardy.API.Constants;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Enums;
@@ -15,17 +16,6 @@ namespace OnBoardy.API.Controllers
     [Authorize]
     public class OrganizationController : ControllerBase
     {
-        private const long MaxLogoBytes = 2 * 1024 * 1024;
-        private const long MaxBannerBytes = 5 * 1024 * 1024;
-
-        private static readonly HashSet<string> AllowedContentTypes =
-        [
-            "image/png",
-            "image/jpg",
-            "image/jpeg",
-            "image/webp"
-        ];
-
         private readonly IOrganizationService _organizationService;
         private readonly IBlobService _blobService;
 
@@ -69,31 +59,6 @@ namespace OnBoardy.API.Controllers
             return Ok(ToResponseWithMediaUrls(organization));
         }
 
-        private OrganizationResponse ToResponseWithMediaUrls(Organization organization)
-        {
-            var response = organization.ToResponseDTO();
-
-            if (!string.IsNullOrWhiteSpace(organization.LogoBlobName))
-            {
-                var logoUrl = _blobService.GenerateReadSas(
-                    BlobContainers.OrganizationMedia,
-                    organization.LogoBlobName);
-
-                response = response with { LogoUrl = logoUrl };
-            }
-
-            if (!string.IsNullOrWhiteSpace(organization.BannerBlobName))
-            {
-                var bannerUrl = _blobService.GenerateReadSas(
-                    BlobContainers.OrganizationMedia,
-                    organization.BannerBlobName);
-
-                response = response with { BannerUrl = bannerUrl };
-            }
-
-            return response;
-        }
-
         [HttpPatch("{orgId:guid}")]
         [TypeFilter(
             typeof(AuthorizeRoleFilter),
@@ -122,30 +87,21 @@ namespace OnBoardy.API.Controllers
             Arguments = new object[] { new[] { MembershipRole.Owner } }
         )]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(MaxLogoBytes)]
-        [RequestFormLimits(MultipartBodyLengthLimit = MaxLogoBytes)]
+        [RequestSizeLimit(MediaValidation.MaxOrganizationLogoBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = MediaValidation.MaxOrganizationLogoBytes)]
         public async Task<IActionResult> UploadLogo(
             Guid orgId,
-            IFormFile file,
+            [AllowedImageFile(MediaValidation.MaxOrganizationLogoBytes)] IFormFile file,
             CancellationToken cancellationToken)
         {
-            if (file is null || file.Length == 0)
-                throw new DomainException("File is required.");
-
-            if (file.Length > MaxLogoBytes)
-                return StatusCode(StatusCodes.Status413PayloadTooLarge);
-
-            var contentType = file.ContentType?.ToLowerInvariant() ?? string.Empty;
-            if (!AllowedContentTypes.Contains(contentType))
-                return BadRequest("Invalid file type");
-
             await using var stream = file.OpenReadStream();
 
-            await _organizationService.SaveLogoAsync(
+            await _organizationService.SaveMediaAsync(
                 orgId,
                 stream,
                 file.FileName,
-                contentType,
+                file.ContentType,
+                OrganizationMediaType.Logo,
                 cancellationToken);
 
             return Ok(new { message = "Organization logo updated successfully." });
@@ -157,33 +113,52 @@ namespace OnBoardy.API.Controllers
             Arguments = new object[] { new[] { MembershipRole.Owner } }
         )]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(MaxBannerBytes)]
-        [RequestFormLimits(MultipartBodyLengthLimit = MaxBannerBytes)]
+        [RequestSizeLimit(MediaValidation.MaxOrganizationBannerBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = MediaValidation.MaxOrganizationBannerBytes)]
         public async Task<IActionResult> UploadBanner(
             Guid orgId,
-            IFormFile file,
+            [AllowedImageFile(MediaValidation.MaxOrganizationBannerBytes)] IFormFile file,
             CancellationToken cancellationToken)
         {
-            if (file is null || file.Length == 0)
-                throw new DomainException("File is required.");
-
-            if (file.Length > MaxBannerBytes)
-                return StatusCode(StatusCodes.Status413PayloadTooLarge);
-
-            var contentType = file.ContentType?.ToLowerInvariant() ?? string.Empty;
-            if (!AllowedContentTypes.Contains(contentType))
-                return BadRequest("Invalid file type");
-
             await using var stream = file.OpenReadStream();
 
-            await _organizationService.SaveBannerAsync(
+            await _organizationService.SaveMediaAsync(
                 orgId,
                 stream,
                 file.FileName,
-                contentType,
+                file.ContentType,
+                OrganizationMediaType.Banner,
                 cancellationToken);
 
             return Ok(new { message = "Organization banner updated successfully." });
+        }
+
+
+        //TODO: Refactor to avoid code duplication with UserController's media URL generation.
+        // Move maps to a separate service and inject it where needed?
+        private OrganizationResponse ToResponseWithMediaUrls(Organization organization)
+        {
+            var response = organization.ToResponseDTO();
+
+            if (!string.IsNullOrWhiteSpace(organization.LogoBlobName))
+            {
+                var logoUrl = _blobService.GenerateReadSas(
+                    BlobContainers.OrganizationMedia,
+                    organization.LogoBlobName);
+
+                response = response with { LogoUrl = logoUrl };
+            }
+
+            if (!string.IsNullOrWhiteSpace(organization.BannerBlobName))
+            {
+                var bannerUrl = _blobService.GenerateReadSas(
+                    BlobContainers.OrganizationMedia,
+                    organization.BannerBlobName);
+
+                response = response with { BannerUrl = bannerUrl };
+            }
+
+            return response;
         }
     }
 }

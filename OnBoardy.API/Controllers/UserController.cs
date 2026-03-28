@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using OnBoardy.API.Attributes;
 using OnBoardy.API.Constants;
 using OnBoardy.API.DTOs;
 using OnBoardy.API.Exceptions.Domain;
 using OnBoardy.API.Extensions;
+using OnBoardy.API.Models;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Controllers
@@ -13,15 +15,13 @@ namespace OnBoardy.API.Controllers
     [Authorize]
     public class UserController : ControllerBase
     {
-        private const long MaxProfilePictureBytes = 2 * 1024 * 1024;
-
         private readonly IUserService _userService;
-        private readonly IBlobService _blobService;
+        private readonly IMediaStorageService _mediaStorageService;
 
-        public UserController(IUserService userService, IBlobService blobService)
+        public UserController(IUserService userService, IMediaStorageService mediaStorageService)
         {
             _userService = userService;
-            _blobService = blobService;
+            _mediaStorageService = mediaStorageService;
         }
 
         [HttpPost]
@@ -29,7 +29,7 @@ namespace OnBoardy.API.Controllers
         public async Task<IActionResult> Create(RegisterRequest request)
         {
             var user = await _userService.CreateAsync(request);
-            return CreatedAtAction(nameof(GetMe), user.ToResponseDTO());
+            return CreatedAtAction(nameof(GetMe), ToResponseWithMediaUrl(user));
         }
 
         [HttpGet("me")]
@@ -40,18 +40,7 @@ namespace OnBoardy.API.Controllers
             var user = await _userService.GetByIdAsync(currentUserId)
                 ?? throw new UserNotFoundException();
 
-            var response = user.ToResponseDTO();
-
-            if (!string.IsNullOrWhiteSpace(user.ProfilePictureBlobName))
-            {
-                var readUrl = _blobService.GenerateReadSas(
-                    BlobContainers.ProfilePictures,
-                    user.ProfilePictureBlobName);
-
-                response = response with { ProfilePictureUrl = readUrl };
-            }
-
-            return Ok(response);
+            return Ok(ToResponseWithMediaUrl(user));
         }
 
         [HttpPatch("me")]
@@ -60,7 +49,7 @@ namespace OnBoardy.API.Controllers
             var currentUserId = User.GetUserId();
 
             var user = await _userService.UpdateAsync(currentUserId, request);
-            return Ok(user.ToResponseDTO());
+            return Ok(ToResponseWithMediaUrl(user));
         }
 
         [HttpDelete("me")]
@@ -74,21 +63,13 @@ namespace OnBoardy.API.Controllers
 
         [HttpPost("me/profile-picture")]
         [Consumes("multipart/form-data")]
-        [RequestSizeLimit(MaxProfilePictureBytes)]
-        [RequestFormLimits(MultipartBodyLengthLimit = MaxProfilePictureBytes)]
-        public async Task<IActionResult> UploadProfilePicture(IFormFile file, CancellationToken cancellationToken)
+        [RequestSizeLimit(MediaValidation.MaxProfilePictureBytes)]
+        [RequestFormLimits(MultipartBodyLengthLimit = MediaValidation.MaxProfilePictureBytes)]
+        public async Task<IActionResult> UploadProfilePicture(
+            [AllowedImageFile(MediaValidation.MaxProfilePictureBytes)]
+            IFormFile file,
+            CancellationToken cancellationToken)
         {
-            if (file is null || file.Length == 0)
-                throw new DomainException("File is required.");
-
-            var allowedContentTypes = new[] { "image/png", "image/jpg", "image/jpeg", "image/webp" };
-
-            if (!allowedContentTypes.Contains(file.ContentType.ToLowerInvariant()))
-                return BadRequest("Invalid file type");
-
-            if (file.Length > MaxProfilePictureBytes)
-                return StatusCode(StatusCodes.Status413PayloadTooLarge);
-
             await using var stream = file.OpenReadStream();
 
             var userId = User.GetUserId();
@@ -96,10 +77,29 @@ namespace OnBoardy.API.Controllers
                 userId,
                 stream,
                 file.FileName,
-                file.ContentType ?? "application/octet-stream",
+                file.ContentType,
                 cancellationToken);
 
             return Ok(new { message = "Profile picture updated successfully." });
+        }
+
+
+        //TODO: Refactor to avoid code duplication with OrganizaitonController's media URL generation.
+        // Move maps to a separate service and inject it where needed?
+        private UserResponse ToResponseWithMediaUrl(User user)
+        {
+            var response = user.ToResponseDTO();
+
+            if (!string.IsNullOrWhiteSpace(user.ProfilePictureBlobName))
+            {
+                var readUrl = _mediaStorageService.GenerateReadSas(
+                    BlobContainers.ProfilePictures,
+                    user.ProfilePictureBlobName);
+
+                response = response with { ProfilePictureUrl = readUrl };
+            }
+
+            return response;
         }
     }
 }
