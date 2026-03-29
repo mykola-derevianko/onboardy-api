@@ -14,10 +14,12 @@ namespace OnBoardy.API.Controllers
     public class OrganizationInvitationsController : ControllerBase
     {
         private readonly IInvitationService _invitationService;
+        private readonly IMapperService _mapperService;
 
-        public OrganizationInvitationsController(IInvitationService invitationService)
+        public OrganizationInvitationsController(IInvitationService invitationService, IMapperService mapperService)
         {
             _invitationService = invitationService;
+            _mapperService = mapperService;
         }
 
         [HttpPost]
@@ -36,7 +38,7 @@ namespace OnBoardy.API.Controllers
             return CreatedAtAction(
                 nameof(Accept),
                 new { token = result.Value.Token },
-                result.Value.ToResponseDTO());
+                _mapperService.ToInvitationResponse(result.Value));
         }
 
         [HttpGet]
@@ -51,7 +53,7 @@ namespace OnBoardy.API.Controllers
             if (result.IsFailure)
                 return this.ToProblem(result.Error);
 
-            return Ok(result.Value.Select(x => x.ToResponseDTO()).ToList());
+            return Ok(result.Value.Select(_mapperService.ToInvitationResponse).ToList());
         }
 
         [HttpDelete("{invitationId:guid}")]

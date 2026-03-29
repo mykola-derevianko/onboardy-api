@@ -2,8 +2,6 @@
 using OnBoardy.API.Constants;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
-using OnBoardy.API.Exceptions.Domain;
-using OnBoardy.API.Extensions;
 using OnBoardy.API.Models;
 using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
@@ -14,16 +12,13 @@ namespace OnBoardy.API.Services
     {
         private readonly AppDbContext _db;
         private readonly IMediaStorageService _mediaStorageService;
-        private readonly IMapperService _mapperService;
 
         public UserService(
             AppDbContext db,
-            IMediaStorageService mediaBlobPipelineService,
-            IMapperService mapperService)
+            IMediaStorageService mediaBlobPipelineService)
         {
             _db = db;
             _mediaStorageService = mediaBlobPipelineService;
-            _mapperService = mapperService;
         }
 
         public async Task<Result<User>> CreateAsync(RegisterRequest registerRequest)
@@ -162,14 +157,6 @@ namespace OnBoardy.API.Services
             await _db.SaveChangesAsync(cancellationToken);
 
             return Result.Success();
-        }
-
-        public async Task<UserResponse> GetMeAsync(Guid userId)
-        {
-            var user = await _db.Users.FindAsync(userId)
-                ?? throw new UserNotFoundException();
-
-            return _mapperService.ToUserResponse(user);
         }
     }
 }

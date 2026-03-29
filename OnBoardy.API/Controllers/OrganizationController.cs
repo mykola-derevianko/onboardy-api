@@ -75,7 +75,7 @@ namespace OnBoardy.API.Controllers
             if (result.IsFailure)
                 return this.ToProblem(result.Error);
 
-            return Ok(result.Value.ToResponseDTO());
+            return Ok(_mapperService.ToOrganizationResponse(result.Value));
         }
 
         [HttpDelete("{orgId:guid}")]

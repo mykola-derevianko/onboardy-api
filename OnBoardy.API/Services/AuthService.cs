@@ -1,7 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Data;
 using OnBoardy.API.DTOs;
-using OnBoardy.API.Exceptions.Identity;
 using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
 
@@ -18,7 +17,6 @@ namespace OnBoardy.API.Services
             IUserService userService,
             ITokenService tokenService,
             IEmailVerificationService emailVerification,
-            ICookieService cookieService,
             AppDbContext db)
         {
             _userService = userService;
@@ -95,20 +93,11 @@ namespace OnBoardy.API.Services
 
         public async Task<Result> VerifyEmailAsync(string token)
         {
-            try
-            {
-                var record = await _emailVerification.ValidateTokenAsync(token);
-                await _emailVerification.MarkAsVerifiedAsync(record);
-                return Result.Success();
-            }
-            catch (InvalidEmailVerificationTokenException)
-            {
-                return Result.Failure(AuthErrors.InvalidEmailVerificationToken);
-            }
-            catch (TokenExpiredException)
-            {
-                return Result.Failure(AuthErrors.RefreshTokenExpired);
-            }
+            var validateResult = await _emailVerification.ValidateTokenAsync(token);
+            if (validateResult.IsFailure)
+                return Result.Failure(validateResult.Error);
+
+            return await _emailVerification.MarkAsVerifiedAsync(validateResult.Value);
         }
 
         public async Task<Result> LogoutAsync(string? refreshToken)

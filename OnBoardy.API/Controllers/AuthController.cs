@@ -15,8 +15,6 @@ namespace OnBoardy.API.Controllers
 
         public AuthController(
             IAuthService authService,
-            IConfiguration config,
-            IWebHostEnvironment webHostEnvironment,
             ICookieService cookieService)
         {
             _authService = authService;
