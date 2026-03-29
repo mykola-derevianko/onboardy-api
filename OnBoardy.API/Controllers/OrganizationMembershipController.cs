@@ -14,10 +14,12 @@ namespace OnBoardy.API.Controllers
     public class OrganizationMembershipController : ControllerBase
     {
         private readonly IMembershipService _membershipService;
+        private readonly IMapperService _mapperService;
 
-        public OrganizationMembershipController(IMembershipService membershipService)
+        public OrganizationMembershipController(IMembershipService membershipService, IMapperService mapperService)
         {
             _membershipService = membershipService;
+            _mapperService = mapperService;
         }
 
         [HttpGet]
@@ -33,7 +35,7 @@ namespace OnBoardy.API.Controllers
             if (membership is null)
                 return this.ToProblem(MembershipErrors.NotFound);
 
-            return Ok(membership.ToResponseDTO());
+            return Ok(_mapperService.ToMembershipResponse(membership));
         }
 
         [HttpGet("all")]
@@ -47,7 +49,7 @@ namespace OnBoardy.API.Controllers
             if (result.IsFailure)
                 return this.ToProblem(result.Error);
 
-            return Ok(result.Value.Select(x => x.ToResponseDTO()).ToList());
+            return Ok(result.Value.Select(_mapperService.ToMembershipResponse).ToList());
         }
     }
 }

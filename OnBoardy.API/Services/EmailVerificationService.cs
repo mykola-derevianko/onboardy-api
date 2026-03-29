@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using OnBoardy.API.Data;
-using OnBoardy.API.Exceptions.Identity;
 using OnBoardy.API.Models;
+using OnBoardy.API.Results;
 using OnBoardy.API.Services.Infrastructure;
 
 namespace OnBoardy.API.Services
@@ -44,27 +44,31 @@ namespace OnBoardy.API.Services
             );
         }
 
-        public async Task<EmailVerification> ValidateTokenAsync(string token)
+        public async Task<Result<EmailVerification>> ValidateTokenAsync(string token)
         {
             var record = await _db.EmailVerification
                 .Include(x => x.User)
-                .FirstOrDefaultAsync(x => x.Token == token)
-                ?? throw new InvalidEmailVerificationTokenException();
+                .FirstOrDefaultAsync(x => x.Token == token);
+
+            if (record is null)
+                return Result.Failure<EmailVerification>(AuthErrors.InvalidEmailVerificationToken);
 
             if (record.VerifiedAt != null)
-                throw new InvalidEmailVerificationTokenException();
+                return Result.Failure<EmailVerification>(AuthErrors.InvalidEmailVerificationToken);
 
             if (record.ExpiresAt < DateTime.UtcNow)
-                throw new TokenExpiredException();
+                return Result.Failure<EmailVerification>(AuthErrors.InvalidEmailVerificationToken);
 
-            return record;
+            return Result.Success(record);
         }
 
-        public async Task MarkAsVerifiedAsync(EmailVerification record)
+        public async Task<Result> MarkAsVerifiedAsync(EmailVerification record)
         {
             record.VerifiedAt = DateTime.UtcNow;
             record.User.EmailVerified = true;
             await _db.SaveChangesAsync();
+
+            return Result.Success();
         }
     }
 }

@@ -78,6 +78,37 @@ namespace OnBoardy.API.Services
             return response;
         }
 
+        public MembershipResponse ToMembershipResponse(Membership membership)
+        {
+            return new MembershipResponse
+            {
+                Id = membership.Id,
+                UserId = membership.UserId,
+                OrganizationId = membership.OrganizationId,
+                Role = membership.Role.ToString(),
+                Status = membership.Status.ToString(),
+                CreatedAt = membership.CreatedAt
+            };
+        }
+
+        public InvitationResponse ToInvitationResponse(Invitation invitation)
+        {
+            return new InvitationResponse
+            {
+                Id = invitation.Id,
+                Email = invitation.Email,
+                OrganizationId = invitation.OrganizationId,
+                InvitedBy = invitation.InvitedBy,
+                Role = invitation.Role,
+                AssignedModules = invitation.AssignedModules,
+                Status = invitation.Status,
+                Token = invitation.Token,
+                CreatedAt = invitation.CreatedAt,
+                AcceptedAt = invitation.AcceptedAt,
+                ExpiresAt = invitation.ExpiresAt
+            };
+        }
+
         public ModuleResponse ToModuleResponse(Module module)
         {
             var bannerBlobUrl = string.IsNullOrWhiteSpace(module.BannerBlobName)
